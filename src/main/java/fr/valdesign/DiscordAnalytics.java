@@ -21,6 +21,7 @@ import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Objects;
 
 public class DiscordAnalytics {
     private final DiscordClient client;
@@ -51,7 +52,7 @@ public class DiscordAnalytics {
         HashMap<String, Object> map = new HashMap<>() {{
             put("tracks", tracks);
             put("lib", "d4j");
-            put("botId", "123456789"); // TODO: get bot id
+            put("botId", Objects.requireNonNull(client.getSelf().block()).id());
         }};
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -63,30 +64,37 @@ public class DiscordAnalytics {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 401) {
-            IOException e = new IOException(ErrorCodes.INVALID_API_TOKEN);
-            e.printStackTrace();
+            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
             return false;
         }
 
         return response.statusCode() == 200;
     }
-
-    public void trackEvents() throws IOException, InterruptedException {
-        if (!isConfigValid()) {
-            new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
-            return;
-        }
-
+    public boolean isInvalidClient() {
         if (client == null) {
             new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
-            return;
+            return true;
         }
         UserData userClient = client.getSelf().block();
         if (userClient == null) {
             new IOException(ErrorCodes.CLIENT_NOT_READY).printStackTrace();
+            return true;
+        }
+        return false;
+    }
+
+    public void trackEvents() throws IOException, InterruptedException {
+        UserData userClient = client.getSelf().block();
+        if (isInvalidClient()) {
+            new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
             return;
         }
+        assert userClient != null;
 
+        if (!isConfigValid()) {
+            new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
+            return;
+        }
         String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
 
         client.withGateway((GatewayDiscordClient gateway) -> {
@@ -107,7 +115,7 @@ public class DiscordAnalytics {
                                 interaction.getCommandInteraction().get().getCustomId().toString()
                             );
                             put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                            put("userCount", eventsToTrack.trackUserCount ? userCount.block() : null);
+                            put("userCount", eventsToTrack.trackUserCount ? userCount : null);
                             put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                             put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
                         }}.toString()))
@@ -120,6 +128,10 @@ public class DiscordAnalytics {
                         e.printStackTrace();
                     }
 
+                    if (response == null) {
+                        new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+                        return Mono.empty();
+                    }
                     if (response.statusCode() == 401) {
                         new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
                     }
@@ -137,7 +149,7 @@ public class DiscordAnalytics {
                                 interaction.getCommandInteraction().get().getCustomId().toString()
                         );
                         notSentInteraction.put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                        notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? userCount.block() : null);
+                        notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
                         notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                         notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
 
@@ -157,50 +169,49 @@ public class DiscordAnalytics {
     }
 
     public void sendDataNotSent() {
-        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
-
-        if (notSentInteraction.size() > 0) {
-            if (client == null) {
+        UserData userClient = client.getSelf().block();
+        if (isInvalidClient()) {
             new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
             return;
         }
-            UserData userClient = client.getSelf().block();
-            if (userClient == null) {
-                new IOException(ErrorCodes.CLIENT_NOT_READY).printStackTrace();
-                return;
-            }
+        assert userClient != null;
 
-            String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
+        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
-                    .header("Authorization", apiKey)
-                    .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
-                        put("type", notSentInteraction.get("type"));
-                        put("name", notSentInteraction.get("name"));
-                        put("userLocale", notSentInteraction.get("userLocale"));
-                        put("userCount", notSentInteraction.get("userCount"));
-                        put("guildCount", notSentInteraction.get("guildCount"));
-                        put("date", notSentInteraction.get("date"));
-                    }}.toString()))
-                    .build();
+        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
 
-            HttpResponse<String> response = null;
-            try {
-                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
+            .header("Authorization", apiKey)
+            .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
+                put("type", notSentInteraction.get("type"));
+                put("name", notSentInteraction.get("name"));
+                put("userLocale", notSentInteraction.get("userLocale"));
+                put("userCount", notSentInteraction.get("userCount"));
+                put("guildCount", notSentInteraction.get("guildCount"));
+                put("date", notSentInteraction.get("date"));
+            }}.toString()))
+            .build();
 
-            if (response.statusCode() == 401) {
-                new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
-            }
-            if (response.statusCode() == 451) {
-                new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
-            }
-            if (response.statusCode() == 200) {
-                dataNotSent.put("interactions", new HashMap<>());
-            }
+        HttpResponse<String> response = null;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if (response == null) {
+            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 401) {
+            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+        }
+        if (response.statusCode() == 451) {
+            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+        }
+        if (response.statusCode() == 200) {
+            dataNotSent.put("interactions", new HashMap<>());
         }
     }
 
