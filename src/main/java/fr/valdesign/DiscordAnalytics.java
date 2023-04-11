@@ -1,13 +1,16 @@
 package fr.valdesign;
 
+import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.object.command.Interaction;
 import discord4j.discordjson.json.UserData;
+import discord4j.discordjson.json.UserGuildData;
 import fr.valdesign.utilities.ApiEndpoints;
 import fr.valdesign.utilities.ErrorCodes;
 import fr.valdesign.utilities.EventsTracker;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -91,6 +94,8 @@ public class DiscordAnalytics {
                 if (eventsToTrack.trackInteractions) {
                     Interaction interaction = event.getInteraction();
                     String[] date = new Date().toString().split(" ");
+                    Flux<UserGuildData> clientGuilds = client.getGuilds();
+                    Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
 
                     HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
@@ -102,8 +107,8 @@ public class DiscordAnalytics {
                                 interaction.getCommandInteraction().get().getCustomId().toString()
                             );
                             put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                            put("userCount", null);
-                            put("guildCount", eventsToTrack.trackGuilds ? client.getGuilds().count() : null);
+                            put("userCount", eventsToTrack.trackUserCount ? userCount.block() : null);
+                            put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                             put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
                         }}.toString()))
                         .build();
@@ -132,8 +137,8 @@ public class DiscordAnalytics {
                                 interaction.getCommandInteraction().get().getCustomId().toString()
                         );
                         notSentInteraction.put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                        notSentInteraction.put("userCount", null);
-                        notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? client.getGuilds().count().block() : null);
+                        notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? userCount.block() : null);
+                        notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                         notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
 
                         dataNotSent.put("interactions", notSentInteraction);
