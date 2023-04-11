@@ -1,26 +1,40 @@
 package fr.valdesign;
 
+import discord4j.core.DiscordClient;
+import discord4j.core.GatewayDiscordClient;
+import discord4j.core.event.domain.interaction.InteractionCreateEvent;
+import discord4j.core.object.command.Interaction;
+import discord4j.discordjson.json.UserData;
 import fr.valdesign.utilities.ApiEndpoints;
 import fr.valdesign.utilities.ErrorCodes;
 import fr.valdesign.utilities.EventsTracker;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 
 public class DiscordAnalytics {
+    private final DiscordClient client;
     private final EventsTracker eventsToTrack;
     private final String apiKey;
     private final HttpClient httpClient;
+    private final HashMap<Object, Object> dataNotSent;
 
-    public DiscordAnalytics(EventsTracker eventsToTrack, String apiKey) {
+    public DiscordAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
+        this.client = client;
         this.eventsToTrack = eventsToTrack;
         this.apiKey = apiKey;
-        HttpClient httpClient = HttpClient.newHttpClient();
-        this.httpClient = httpClient;
+        this.httpClient = HttpClient.newHttpClient();
+        this.dataNotSent = new HashMap<>() {{
+            put("interactions", new HashMap<>());
+            put("guilds", new HashMap<>());
+        }};
     }
 
     public boolean isConfigValid() throws IOException, InterruptedException {
@@ -55,11 +69,139 @@ public class DiscordAnalytics {
     }
 
     public void trackEvents() throws IOException, InterruptedException {
-        boolean isConfigValid = isConfigValid();
-        if (!isConfigValid) {
-            IOException e = new IOException(ErrorCodes.INVALID_CONFIGURATION);
-            e.printStackTrace();
+        if (!isConfigValid()) {
+            new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
         }
+
+        if (client == null) {
+            new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
+            return;
+        }
+        UserData userClient = client.getSelf().block();
+        if (userClient == null) {
+            new IOException(ErrorCodes.CLIENT_NOT_READY).printStackTrace();
+            return;
+        }
+
+        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
+
+        client.withGateway((GatewayDiscordClient gateway) -> {
+            gateway.on(InteractionCreateEvent.class, event -> {
+                if (eventsToTrack.trackInteractions) {
+                    Interaction interaction = event.getInteraction();
+                    String[] date = new Date().toString().split(" ");
+
+                    HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
+                        .header("Authorization", apiKey)
+                        .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
+                            put("type", interaction.getType().getValue());
+                            put("name", interaction.getCommandInteraction().isPresent() ?
+                                interaction.getCommandInteraction().get().getName().toString() :
+                                interaction.getCommandInteraction().get().getCustomId().toString()
+                            );
+                            put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
+                            put("userCount", null);
+                            put("guildCount", eventsToTrack.trackGuilds ? client.getGuilds().count() : null);
+                            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                        }}.toString()))
+                        .build();
+
+                    HttpResponse<String> response = null;
+                    try {
+                        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (response.statusCode() == 401) {
+                        new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+                    }
+                    if (response.statusCode() == 451) {
+                        new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+                    }
+                    HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
+                    if (response.statusCode() != 200) {
+                        if (notSentInteraction.size() == 0) {
+                            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+                        }
+                        notSentInteraction.put("type", interaction.getType().getValue());
+                        notSentInteraction.put("name", interaction.getCommandInteraction().isPresent() ?
+                                interaction.getCommandInteraction().get().getName().toString() :
+                                interaction.getCommandInteraction().get().getCustomId().toString()
+                        );
+                        notSentInteraction.put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
+                        notSentInteraction.put("userCount", null);
+                        notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? client.getGuilds().count().block() : null);
+                        notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+
+                        dataNotSent.put("interactions", notSentInteraction);
+                    }
+
+                    if (response.statusCode() == 200 && notSentInteraction.size() > 0) {
+                        sendDataNotSent();
+                    }
+                }
+
+                return Mono.empty();
+            });
+
+            return Mono.empty();
+        });
+    }
+
+    public void sendDataNotSent() {
+        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
+
+        if (notSentInteraction.size() > 0) {
+            if (client == null) {
+            new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
+            return;
+        }
+            UserData userClient = client.getSelf().block();
+            if (userClient == null) {
+                new IOException(ErrorCodes.CLIENT_NOT_READY).printStackTrace();
+                return;
+            }
+
+            String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
+                    .header("Authorization", apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
+                        put("type", notSentInteraction.get("type"));
+                        put("name", notSentInteraction.get("name"));
+                        put("userLocale", notSentInteraction.get("userLocale"));
+                        put("userCount", notSentInteraction.get("userCount"));
+                        put("guildCount", notSentInteraction.get("guildCount"));
+                        put("date", notSentInteraction.get("date"));
+                    }}.toString()))
+                    .build();
+
+            HttpResponse<String> response = null;
+            try {
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            if (response.statusCode() == 401) {
+                new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            }
+            if (response.statusCode() == 451) {
+                new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            }
+            if (response.statusCode() == 200) {
+                dataNotSent.put("interactions", new HashMap<>());
+            }
+        }
+    }
+
+    public static String monthToNumber(String month) {
+        String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        int monthIndex = Arrays.asList(months).indexOf(month);
+        return (monthIndex < 9 ? "0" : "") + (monthIndex + 1);
     }
 }
