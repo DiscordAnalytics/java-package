@@ -3,6 +3,9 @@ package fr.valdesign;
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
+import discord4j.core.event.domain.guild.GuildCreateEvent;
+import discord4j.core.event.domain.guild.GuildDeleteEvent;
+import discord4j.core.event.domain.guild.GuildEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.object.command.Interaction;
 import discord4j.discordjson.json.UserData;
@@ -41,7 +44,7 @@ public class DiscordAnalytics {
         }};
     }
 
-    public boolean isConfigValid() throws IOException, InterruptedException {
+    private boolean isConfigValid() throws IOException, InterruptedException {
         HashMap<String, Object> tracks = new HashMap<>() {{
             put("interactions", eventsToTrack.trackInteractions);
             put("guilds", eventsToTrack.trackGuilds);
@@ -70,7 +73,7 @@ public class DiscordAnalytics {
 
         return response.statusCode() == 200;
     }
-    public boolean isInvalidClient() {
+    private boolean isInvalidClient() {
         if (client == null) {
             new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
             return true;
@@ -98,8 +101,8 @@ public class DiscordAnalytics {
         String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
 
         client.withGateway((GatewayDiscordClient gateway) -> {
-            gateway.on(InteractionCreateEvent.class, event -> {
-                if (eventsToTrack.trackInteractions) {
+            if (eventsToTrack.trackInteractions) {
+                gateway.on(InteractionCreateEvent.class, event -> {
                     Interaction interaction = event.getInteraction();
                     String[] date = new Date().toString().split(" ");
                     Flux<UserGuildData> clientGuilds = client.getGuilds();
@@ -159,37 +162,31 @@ public class DiscordAnalytics {
                     if (response.statusCode() == 200 && notSentInteraction.size() > 0) {
                         sendDataNotSent();
                     }
-                }
 
-                return Mono.empty();
-            });
+                    return Mono.empty();
+                });
+            }
+            if (eventsToTrack.trackGuilds) {
+                gateway.on(GuildCreateEvent.class, event -> trackGuilds(baseAPIUrl));
+                gateway.on(GuildDeleteEvent.class, event -> trackGuilds(baseAPIUrl));
+            }
 
             return Mono.empty();
         });
     }
 
-    public void sendDataNotSent() {
-        UserData userClient = client.getSelf().block();
-        if (isInvalidClient()) {
-            new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
-            return;
-        }
-        assert userClient != null;
-
-        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
-
-        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
+    private Mono<Object> trackGuilds(String baseAPIUrl) {
+        String[] date = new Date().toString().split(" ");
+        Flux<UserGuildData> clientGuilds = client.getGuilds();
+        Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
+            .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.GUILDS))
             .header("Authorization", apiKey)
             .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
-                put("type", notSentInteraction.get("type"));
-                put("name", notSentInteraction.get("name"));
-                put("userLocale", notSentInteraction.get("userLocale"));
-                put("userCount", notSentInteraction.get("userCount"));
-                put("guildCount", notSentInteraction.get("guildCount"));
-                put("date", notSentInteraction.get("date"));
+                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
+                put("userCount", eventsToTrack.trackUserCount ? userCount : null);
             }}.toString()))
             .build();
 
@@ -202,7 +199,7 @@ public class DiscordAnalytics {
 
         if (response == null) {
             new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-            return;
+            return Mono.empty();
         }
         if (response.statusCode() == 401) {
             new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
@@ -210,12 +207,108 @@ public class DiscordAnalytics {
         if (response.statusCode() == 451) {
             new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
         }
-        if (response.statusCode() == 200) {
-            dataNotSent.put("interactions", new HashMap<>());
+        HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) dataNotSent.get("guilds");
+        if (response.statusCode() != 200) {
+            if (notSentGuild.size() == 0) {
+                new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+            }
+            notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+            notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
+            notSentGuild.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
+
+            dataNotSent.put("guilds", notSentGuild);
+        }
+
+        if (response.statusCode() == 200 && notSentGuild.size() > 0) {
+            sendDataNotSent();
+        }
+
+        return Mono.empty();
+    }
+
+    private void sendDataNotSent() {
+        UserData userClient = client.getSelf().block();
+        if (isInvalidClient()) {
+            new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
+            return;
+        }
+        assert userClient != null;
+
+        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
+        HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) dataNotSent.get("guilds");
+
+        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
+
+        if (notSentInteraction.size() > 0) {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.INTERACTIONS))
+                .header("Authorization", apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
+                    put("type", notSentInteraction.get("type"));
+                    put("name", notSentInteraction.get("name"));
+                    put("userLocale", notSentInteraction.get("userLocale"));
+                    put("userCount", notSentInteraction.get("userCount"));
+                    put("guildCount", notSentInteraction.get("guildCount"));
+                    put("date", notSentInteraction.get("date"));
+                }}.toString()))
+                .build();
+
+            HttpResponse<String> response = null;
+            try {
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            if (response == null) {
+                new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+                return;
+            }
+            if (response.statusCode() == 401) {
+                new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            }
+            if (response.statusCode() == 451) {
+                new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            }
+            if (response.statusCode() == 200) {
+                dataNotSent.put("interactions", new HashMap<>());
+            }
+        }
+        if (notSentGuild.size() > 0) {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseAPIUrl + ApiEndpoints.ROUTES.GUILDS))
+                .header("Authorization", apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
+                    put("date", notSentGuild.get("date"));
+                    put("guildCount", notSentGuild.get("guildCount"));
+                    put("userCount", notSentGuild.get("userCount"));
+                }}.toString()))
+                .build();
+
+            HttpResponse<String> response = null;
+            try {
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            if (response == null) {
+                new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+                return;
+            }
+            if (response.statusCode() == 401) {
+                new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            }
+            if (response.statusCode() == 451) {
+                new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            }
+            if (response.statusCode() == 200) {
+                dataNotSent.put("guilds", new HashMap<>());
+            }
         }
     }
 
-    public static String monthToNumber(String month) {
+    private static String monthToNumber(String month) {
         String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
         int monthIndex = Arrays.asList(months).indexOf(month);
         return (monthIndex < 9 ? "0" : "") + (monthIndex + 1);
