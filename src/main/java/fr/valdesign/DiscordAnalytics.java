@@ -32,6 +32,7 @@ public class DiscordAnalytics {
     private final String apiKey;
     private final HttpClient httpClient;
     private final HashMap<Object, Object> dataNotSent;
+    private final Date precedentPostDate;
 
     public DiscordAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
         this.client = client;
@@ -42,6 +43,7 @@ public class DiscordAnalytics {
             put("interactions", new HashMap<>());
             put("guilds", new HashMap<>());
         }};
+        this.precedentPostDate = new Date();
     }
 
     private boolean isConfigValid() throws IOException, InterruptedException {
@@ -85,6 +87,11 @@ public class DiscordAnalytics {
         }
         return false;
     }
+    private boolean isOnCooldown() {
+        Date currentDate = new Date();
+        long diff = currentDate.getTime() - precedentPostDate.getTime();
+        return diff < 600000;
+    }
 
     public void trackEvents() throws IOException, InterruptedException {
         UserData userClient = client.getSelf().block();
@@ -93,6 +100,11 @@ public class DiscordAnalytics {
             return;
         }
         assert userClient != null;
+
+        if (isOnCooldown()) {
+            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+            return;
+        }
 
         if (!isConfigValid()) {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
@@ -137,6 +149,9 @@ public class DiscordAnalytics {
                     }
                     if (response.statusCode() == 401) {
                         new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+                    }
+                    if (response.statusCode() == 429) {
+                        new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
                     }
                     if (response.statusCode() == 451) {
                         new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
@@ -203,6 +218,9 @@ public class DiscordAnalytics {
         }
         if (response.statusCode() == 401) {
             new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+        }
+        if (response.statusCode() == 429) {
+            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
         }
         if (response.statusCode() == 451) {
             new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
