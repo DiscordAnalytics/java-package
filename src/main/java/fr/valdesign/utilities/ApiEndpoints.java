@@ -7,6 +7,5 @@ public class ApiEndpoints {
     public static final class ROUTES {
         public static final String INTERACTIONS = "/interactions";
         public static final String GUILDS = "/guilds";
-        public static final String USERS = "/users";
     }
 }
