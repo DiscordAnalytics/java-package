@@ -31,7 +31,7 @@ public class DiscordAnalytics {
     private final String apiKey;
     private final HttpClient httpClient;
     private final HashMap<Object, Object> dataNotSent;
-    private final Date precedentPostDate;
+    private Date precedentPostDate;
 
     public DiscordAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
         this.client = client;
@@ -87,17 +87,13 @@ public class DiscordAnalytics {
         return false;
     }
     private boolean isOnCooldown() {
-        Date currentDate = new Date();
-        long diff = currentDate.getTime() - precedentPostDate.getTime();
+        long diff = new Date().getTime() - precedentPostDate.getTime();
         return diff < 600000;
     }
 
     public void trackEvents() throws IOException, InterruptedException {
         UserData userClient = client.getSelf().block();
-        if (isInvalidClient()) {
-            new IOException(ErrorCodes.INVALID_CLIENT_TYPE).printStackTrace();
-            return;
-        }
+        if (isInvalidClient()) return;
         assert userClient != null;
 
         if (isOnCooldown()) {
@@ -109,7 +105,8 @@ public class DiscordAnalytics {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
         }
-        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", (CharSequence) userClient.id());
+
+        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", userClient.id().asString());
 
         client.withGateway((GatewayDiscordClient gateway) -> {
             if (eventsToTrack.trackInteractions) {
@@ -184,6 +181,8 @@ public class DiscordAnalytics {
                 gateway.on(GuildCreateEvent.class, event -> trackGuilds(baseAPIUrl));
                 gateway.on(GuildDeleteEvent.class, event -> trackGuilds(baseAPIUrl));
             }
+
+            precedentPostDate = new Date();
 
             return Mono.empty();
         });
