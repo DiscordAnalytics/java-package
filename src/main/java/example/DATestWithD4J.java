@@ -4,7 +4,7 @@ import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.lifecycle.ReadyEvent;
 import discord4j.core.object.entity.User;
-import fr.valdesign.DiscordAnalytics;
+import fr.valdesign.D4JAnalytics;
 import fr.valdesign.utilities.EventsTracker;
 import reactor.core.publisher.Mono;
 
@@ -33,7 +33,7 @@ public class DATestWithD4J {
 
                     // Initialize the DiscordAnalytics class
                     // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-                    DiscordAnalytics analytics = new DiscordAnalytics(client, eventsTracker, "YOUR_API_KEY");
+                    D4JAnalytics analytics = new D4JAnalytics(client, eventsTracker, "YOUR_API_KEY");
                     // Start the tracking in a new thread
                     // The tracking will be done every 10 minutes to avoid spamming the API (10 minutes is the minimum)
                     new Thread(() -> {

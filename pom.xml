@@ -5,12 +5,12 @@
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>fr.valdesign</groupId>
-    <artifactId>discord-analytics-d4j</artifactId>
+    <artifactId>discord-analytics</artifactId>
     <packaging>jar</packaging>
     <version>0.0.1</version>
 
     <name>Discord Analytics D4J</name>
-    <description>The Discord Analytics package for Discord4J</description>
+    <description>The Discord Analytics package for java discord frameworks</description>
     <url>https://github.com/DiscordAnalytics/package-d4j</url>
 
 
@@ -25,6 +25,12 @@
             <groupId>com.discord4j</groupId>
             <artifactId>discord4j-core</artifactId>
             <version>3.2.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.javacord</groupId>
+            <artifactId>javacord</artifactId>
+            <version>3.8.0</version>
+            <type>pom</type>
         </dependency>
     </dependencies>
 </project>
