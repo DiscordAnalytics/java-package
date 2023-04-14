@@ -32,5 +32,10 @@
             <version>3.8.0</version>
             <type>pom</type>
         </dependency>
+        <dependency>
+            <groupId>net.dv8tion</groupId>
+            <artifactId>JDA</artifactId>
+            <version>5.0.0-beta.8</version>
+        </dependency>
     </dependencies>
 </project>
