@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 
-public class DATestWithD4J {
+public class ExampleWithD4j {
     public static void main(String[] args) {
         // Create a Discord client
         // Don't forget to replace YOUR_BOT_TOKEN by your Discord bot token !
@@ -34,18 +34,12 @@ public class DATestWithD4J {
                     // Initialize the DiscordAnalytics class
                     // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
                     D4JAnalytics analytics = new D4JAnalytics(client, eventsTracker, "YOUR_API_KEY");
-                    // Start the tracking in a new thread
-                    // The tracking will be done every 10 minutes to avoid spamming the API (10 minutes is the minimum)
-                    new Thread(() -> {
-                        while (true) {
-                            try {
-                                analytics.trackEvents();
-                                Thread.sleep(600000);
-                            } catch (IOException | InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }).start();
+                    // Start the tracking, it will be done every 10 minutes to avoid spamming the API
+                    try {
+                        analytics.trackEvents();
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 })));
 
         // Login the client

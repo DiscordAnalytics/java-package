@@ -40,11 +40,6 @@ public class JavacordAnalytics extends AnalyticsBase {
         if (isInvalidClient()) return;
         assert userClient != null;
 
-        if (isOnCooldown()) {
-            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return;
-        }
-
         if (isConfigInvalid(userClient.getIdAsString())) {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
@@ -54,6 +49,11 @@ public class JavacordAnalytics extends AnalyticsBase {
 
         if (eventsToTrack.trackInteractions) {
             client.addInteractionCreateListener(listener -> {
+                if (isOnCooldown()) {
+                    new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+                    return;
+                }
+
                 Interaction interaction = listener.getInteraction();
                 String[] date = new Date().toString().split(" ");
 
@@ -120,6 +120,11 @@ public class JavacordAnalytics extends AnalyticsBase {
     }
 
     private void trackGuilds(String baseAPIUrl) {
+        if (isOnCooldown()) {
+            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+            return;
+        }
+
         String[] date = new Date().toString().split(" ");
 
         HttpRequest request = HttpRequest.newBuilder()

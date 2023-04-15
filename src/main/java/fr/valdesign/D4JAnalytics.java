@@ -48,11 +48,6 @@ public class D4JAnalytics extends AnalyticsBase {
         if (isInvalidClient()) return;
         assert userClient != null;
 
-        if (isOnCooldown()) {
-            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return;
-        }
-
         if (isConfigInvalid(userClient.id().asString())) {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
@@ -63,6 +58,11 @@ public class D4JAnalytics extends AnalyticsBase {
         client.withGateway((GatewayDiscordClient gateway) -> {
             if (eventsToTrack.trackInteractions) {
                 gateway.on(InteractionCreateEvent.class, event -> {
+                    if (isOnCooldown()) {
+                        new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+                        return Mono.empty();
+                    }
+
                     Interaction interaction = event.getInteraction();
                     String[] date = new Date().toString().split(" ");
                     Flux<UserGuildData> clientGuilds = client.getGuilds();
@@ -141,6 +141,11 @@ public class D4JAnalytics extends AnalyticsBase {
     }
 
     private Mono<Object> trackGuilds(String baseAPIUrl) {
+        if (isOnCooldown()) {
+            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+            return Mono.empty();
+        }
+
         String[] date = new Date().toString().split(" ");
         Flux<UserGuildData> clientGuilds = client.getGuilds();
         Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
