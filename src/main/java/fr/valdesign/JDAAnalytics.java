@@ -29,11 +29,6 @@ public class JDAAnalytics extends AnalyticsBase {
         SelfUser userClient = client.getSelfUser();
         if (isInvalidClient()) return;
 
-        if (isOnCooldown()) {
-            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return;
-        }
-
         if (isConfigInvalid(userClient.getId())) {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
@@ -42,9 +37,7 @@ public class JDAAnalytics extends AnalyticsBase {
         String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", userClient.getId());
 
         if (eventsToTrack.trackInteractions) {
-            InteractionTrackerListener interactionListener = new InteractionTrackerListener(baseAPIUrl, apiKey);
-            client.addEventListener(interactionListener);
-            client.removeEventListener(interactionListener);
+            client.addEventListener(new InteractionTrackerListener(client, baseAPIUrl, apiKey, this));
         }
     }
 }

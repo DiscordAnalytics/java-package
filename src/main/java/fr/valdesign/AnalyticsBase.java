@@ -61,9 +61,21 @@ public class AnalyticsBase {
         return response.statusCode() != 200;
     }
 
+    public HttpClient getHttpClient() {
+        return httpClient;
+    }
+    public HashMap<Object, Object> getDataNotSent() {
+        return dataNotSent;
+    }
+    public void putToDataNotSent(String key, Object value) {
+        dataNotSent.put(key, value);
+    }
+    public EventsTracker getEventsToTrack() {
+        return eventsToTrack;
+    }
+
     protected boolean isOnCooldown() {
-        long diff = new Date().getTime() - precedentPostDate.getTime();
-        return diff < 600000;
+        return new Date().getTime() - precedentPostDate.getTime() < 600000;
     }
 
     protected static String monthToNumber(String month) {

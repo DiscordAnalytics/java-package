@@ -49,10 +49,7 @@ public class JavacordAnalytics extends AnalyticsBase {
 
         if (eventsToTrack.trackInteractions) {
             client.addInteractionCreateListener(listener -> {
-                if (isOnCooldown()) {
-                    new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-                    return;
-                }
+                if (isOnCooldown()) return;
 
                 Interaction interaction = listener.getInteraction();
                 String[] date = new Date().toString().split(" ");

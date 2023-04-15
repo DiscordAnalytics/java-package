@@ -58,10 +58,7 @@ public class D4JAnalytics extends AnalyticsBase {
         client.withGateway((GatewayDiscordClient gateway) -> {
             if (eventsToTrack.trackInteractions) {
                 gateway.on(InteractionCreateEvent.class, event -> {
-                    if (isOnCooldown()) {
-                        new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-                        return Mono.empty();
-                    }
+                    if (isOnCooldown()) return Mono.empty();
 
                     Interaction interaction = event.getInteraction();
                     String[] date = new Date().toString().split(" ");
@@ -95,20 +92,12 @@ public class D4JAnalytics extends AnalyticsBase {
                         new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                         return Mono.empty();
                     }
-                    if (response.statusCode() == 401) {
-                        new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
-                    }
-                    if (response.statusCode() == 429) {
-                        new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-                    }
-                    if (response.statusCode() == 451) {
-                        new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
-                    }
+                    if (response.statusCode() == 401) new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+                    if (response.statusCode() == 429) new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+                    if (response.statusCode() == 451) new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
                     HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) dataNotSent.get("interactions");
-                    if (response.statusCode() != 200) {
-                        if (notSentInteraction.size() == 0) {
-                            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-                        }
+                    if (response.statusCode() != 200 & notSentInteraction.size() == 0) {
+                        new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                         notSentInteraction.put("type", interaction.getType().getValue());
                         notSentInteraction.put("name", interaction.getCommandInteraction().isPresent() ?
                                 interaction.getCommandInteraction().get().getName().toString() :
@@ -118,13 +107,10 @@ public class D4JAnalytics extends AnalyticsBase {
                         notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
                         notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                         notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-
                         dataNotSent.put("interactions", notSentInteraction);
                     }
 
-                    if (response.statusCode() == 200 && notSentInteraction.size() > 0) {
-                        sendDataNotSent();
-                    }
+                    if (response.statusCode() == 200 && notSentInteraction.size() > 0) sendDataNotSent();
 
                     return Mono.empty();
                 });
@@ -141,10 +127,7 @@ public class D4JAnalytics extends AnalyticsBase {
     }
 
     private Mono<Object> trackGuilds(String baseAPIUrl) {
-        if (isOnCooldown()) {
-            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return Mono.empty();
-        }
+        if (isOnCooldown()) return Mono.empty();
 
         String[] date = new Date().toString().split(" ");
         Flux<UserGuildData> clientGuilds = client.getGuilds();
@@ -237,15 +220,9 @@ public class D4JAnalytics extends AnalyticsBase {
                 new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                 return;
             }
-            if (response.statusCode() == 401) {
-                new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
-            }
-            if (response.statusCode() == 451) {
-                new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
-            }
-            if (response.statusCode() == 200) {
-                dataNotSent.put("interactions", new HashMap<>());
-            }
+            if (response.statusCode() == 401) new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            if (response.statusCode() == 451) new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            if (response.statusCode() == 200) dataNotSent.put("interactions", new HashMap<>());
         }
         if (notSentGuild.size() > 0) {
             HttpRequest request = HttpRequest.newBuilder()
@@ -269,15 +246,9 @@ public class D4JAnalytics extends AnalyticsBase {
                 new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                 return;
             }
-            if (response.statusCode() == 401) {
-                new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
-            }
-            if (response.statusCode() == 451) {
-                new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
-            }
-            if (response.statusCode() == 200) {
-                dataNotSent.put("guilds", new HashMap<>());
-            }
+            if (response.statusCode() == 401) new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            if (response.statusCode() == 451) new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            if (response.statusCode() == 200) dataNotSent.put("guilds", new HashMap<>());
         }
     }
 }

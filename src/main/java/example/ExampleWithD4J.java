@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 
-public class ExampleWithD4j {
+public class ExampleWithD4J {
     public static void main(String[] args) {
         // Create a Discord client
         // Don't forget to replace YOUR_BOT_TOKEN by your Discord bot token !
