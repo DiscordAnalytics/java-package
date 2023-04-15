@@ -8,5 +8,6 @@ public class ErrorCodes {
     public static final String DATA_NOT_SENT = "Data cannot be sent to the API, I will try again later.";
     public static final String SUSPENDED_BOT = "Your bot has been suspended, please check your mailbox for more information.";
     public static final String ON_COOLDOWN = "You are on cooldown, please try again later.";
+    public static final String UNKNOWN_ERROR = "An unknown error has occurred, please try again later.";
 }
 

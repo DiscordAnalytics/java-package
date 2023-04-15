@@ -64,6 +64,20 @@ public class AnalyticsBase {
     public HttpClient getHttpClient() {
         return httpClient;
     }
+    public void post(String url, String apiKey, Object data) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(data.toString()))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 401) new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+        if (response.statusCode() == 429) new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+        if (response.statusCode() == 451) new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+        if (response.statusCode() != 200) new IOException(ErrorCodes.UNKNOWN_ERROR).printStackTrace();
+    }
     public HashMap<Object, Object> getDataNotSent() {
         return dataNotSent;
     }
