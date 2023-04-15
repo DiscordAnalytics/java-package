@@ -1,5 +1,6 @@
 package fr.valdesign;
 
+import fr.valdesign.jda.GuildsTrackerListener;
 import fr.valdesign.jda.InteractionTrackerListener;
 import fr.valdesign.utilities.ApiEndpoints;
 import fr.valdesign.utilities.ErrorCodes;
@@ -36,8 +37,7 @@ public class JDAAnalytics extends AnalyticsBase {
 
         String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", userClient.getId());
 
-        if (eventsToTrack.trackInteractions) {
-            client.addEventListener(new InteractionTrackerListener(client, baseAPIUrl, apiKey, this));
-        }
+        if (eventsToTrack.trackInteractions) client.addEventListener(new InteractionTrackerListener(client, baseAPIUrl, apiKey, this));
+        if (eventsToTrack.trackGuilds) client.addEventListener(new GuildsTrackerListener(client, baseAPIUrl, apiKey, this));
     }
 }
