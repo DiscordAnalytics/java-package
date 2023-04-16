@@ -4,8 +4,8 @@ import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.lifecycle.ReadyEvent;
 import discord4j.core.object.entity.User;
-import fr.valdesign.D4JAnalytics;
-import fr.valdesign.utilities.EventsTracker;
+import xyz.discordanalytics.D4JAnalytics;
+import xyz.discordanalytics.utilities.EventsTracker;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;

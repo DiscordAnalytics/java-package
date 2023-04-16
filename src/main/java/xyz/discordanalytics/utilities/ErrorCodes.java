@@ -1,4 +1,4 @@
-package fr.valdesign.utilities;
+package xyz.discordanalytics.utilities;
 
 public class ErrorCodes {
     public static final String INVALID_CLIENT_TYPE = "Invalid client type, please use a valid client.";

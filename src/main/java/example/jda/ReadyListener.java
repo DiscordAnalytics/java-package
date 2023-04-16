@@ -2,8 +2,8 @@ package example.jda;
 
 import discord4j.core.event.domain.lifecycle.ReadyEvent;
 import discord4j.core.object.entity.User;
-import fr.valdesign.JDAAnalytics;
-import fr.valdesign.utilities.EventsTracker;
+import xyz.discordanalytics.JDAAnalytics;
+import xyz.discordanalytics.utilities.EventsTracker;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.jetbrains.annotations.NotNull;

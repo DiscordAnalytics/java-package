@@ -1,4 +1,4 @@
-package fr.valdesign;
+package xyz.discordanalytics;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
@@ -9,9 +9,9 @@ import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.object.command.Interaction;
 import discord4j.discordjson.json.UserData;
 import discord4j.discordjson.json.UserGuildData;
-import fr.valdesign.utilities.ApiEndpoints;
-import fr.valdesign.utilities.ErrorCodes;
-import fr.valdesign.utilities.EventsTracker;
+import xyz.discordanalytics.utilities.ApiEndpoints;
+import xyz.discordanalytics.utilities.ErrorCodes;
+import xyz.discordanalytics.utilities.EventsTracker;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

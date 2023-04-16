@@ -1,4 +1,4 @@
-package fr.valdesign.utilities;
+package xyz.discordanalytics.utilities;
 
 public class ApiEndpoints {
     public static final String BASE_URL = "https://discordanalytics.xyz/api";

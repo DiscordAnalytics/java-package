@@ -1,7 +1,7 @@
 package example;
 
-import fr.valdesign.JavacordAnalytics;
-import fr.valdesign.utilities.EventsTracker;
+import xyz.discordanalytics.JavacordAnalytics;
+import xyz.discordanalytics.utilities.EventsTracker;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.intent.Intent;

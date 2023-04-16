@@ -1,4 +1,4 @@
-package fr.valdesign.utilities;
+package xyz.discordanalytics.utilities;
 
 public class EventsTracker {
     public boolean trackInteractions;

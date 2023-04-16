@@ -1,8 +1,8 @@
-package fr.valdesign;
+package xyz.discordanalytics;
 
-import fr.valdesign.utilities.ApiEndpoints;
-import fr.valdesign.utilities.ErrorCodes;
-import fr.valdesign.utilities.EventsTracker;
+import xyz.discordanalytics.utilities.ApiEndpoints;
+import xyz.discordanalytics.utilities.ErrorCodes;
+import xyz.discordanalytics.utilities.EventsTracker;
 
 import java.io.IOException;
 import java.net.URI;
