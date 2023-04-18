@@ -8,6 +8,9 @@ on: push
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 17
@@ -15,8 +18,6 @@ jobs:
         with:
           java-version: 17
           distribution: 'adopt'
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
       - name: Publish package to GitHub Packages
         run: mvn deploy
         env:
