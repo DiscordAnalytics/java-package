@@ -1,12 +1,13 @@
 package xyz.discordanalytics;
 
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.SelfUser;
 import xyz.discordanalytics.jda.GuildsTrackerListener;
 import xyz.discordanalytics.jda.InteractionTrackerListener;
 import xyz.discordanalytics.utilities.ApiEndpoints;
 import xyz.discordanalytics.utilities.ErrorCodes;
 import xyz.discordanalytics.utilities.EventsTracker;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.SelfUser;
+import xyz.discordanalytics.utilities.LibType;
 
 import java.io.IOException;
 
@@ -16,6 +17,11 @@ public class JDAAnalytics extends AnalyticsBase {
     public JDAAnalytics(JDA jda, EventsTracker eventsToTrack, String apiKey) {
         super(eventsToTrack, apiKey);
         this.client = jda;
+        this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", client.getSelfUser().getId());
+    }
+
+    public JDA getClient() {
+        return client;
     }
 
     private boolean isInvalidClient() {
@@ -30,14 +36,12 @@ public class JDAAnalytics extends AnalyticsBase {
         SelfUser userClient = client.getSelfUser();
         if (isInvalidClient()) return;
 
-        if (isConfigInvalid(userClient.getId())) {
+        if (isConfigInvalid(userClient.getId(), LibType.JDA)) {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
         }
 
-        String baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", userClient.getId());
-
-        if (eventsToTrack.trackInteractions) client.addEventListener(new InteractionTrackerListener(client, baseAPIUrl, apiKey, this));
-        if (eventsToTrack.trackGuilds) client.addEventListener(new GuildsTrackerListener(client, baseAPIUrl, apiKey, this));
+        if (eventsToTrack.trackInteractions) client.addEventListener(new InteractionTrackerListener(this));
+        if (eventsToTrack.trackGuilds) client.addEventListener(new GuildsTrackerListener(this));
     }
 }
