@@ -17,7 +17,7 @@ public class AnalyticsBase {
     protected final EventsTracker eventsToTrack;
     protected final String apiKey;
     protected final HttpClient httpClient;
-    protected final HashMap<Object, Object> dataNotSent;
+    protected final HashMap<Object, Object> dataToSend;
     protected Date precedentPostDate;
     protected String baseAPIUrl;
 
@@ -25,30 +25,38 @@ public class AnalyticsBase {
         this.eventsToTrack = eventsToTrack;
         this.apiKey = apiKey;
         this.httpClient = HttpClient.newHttpClient();
-        this.dataNotSent = new HashMap<>() {{
+
+        String[] date = new Date().toString().split(" ");
+        this.dataToSend = new HashMap<>() {{
+            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+            put("guilds", 0);
+            put("users", 0);
             put("interactions", new HashMap<>());
-            put("messages", new HashMap<>());
+            put("locales", new HashMap<>());
+            put("guildsLocales", new HashMap<>());
         }};
         this.precedentPostDate = new Date();
     }
 
-    protected boolean isConfigInvalid(String id, String libType) throws IOException, InterruptedException {
+    protected boolean isConfigInvalid(String username, String avatar, String id, String libType) throws IOException, InterruptedException {
 
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
-            .uri(URI.create(ApiEndpoints.BASE_URL + ApiEndpoints.EDIT_SETTINGS_URL))
-            .header("Authorization", apiKey)
-            .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
-                put("tracks", new HashMap<>() {{
-                    put("interactions", eventsToTrack.trackInteractions);
-                    put("guilds", eventsToTrack.trackGuilds);
-                    put("userCount", eventsToTrack.trackUserCount);
-                    put("userLanguage", eventsToTrack.trackUserLanguage);
-                    put("guildsLocale", eventsToTrack.trackGuildsLocale);
-                }});
-                put("lib", libType);
-                put("botId", id);
-            }}.toString()))
-            .build(), HttpResponse.BodyHandlers.ofString());
+                .uri(URI.create(ApiEndpoints.BASE_URL + ApiEndpoints.BOT_URL.replace("[id]", id)))
+                .header("Authorization", "Bot " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
+                    put("settings", new HashMap<>() {{
+                        put("trackGuilds", eventsToTrack.trackGuilds);
+                        put("trackGuildsLocale", eventsToTrack.trackGuildsLocale);
+                        put("trackInteractions", eventsToTrack.trackInteractions);
+                        put("trackUserCount", eventsToTrack.trackUserCount);
+                        put("trackUserLanguage", eventsToTrack.trackUserLanguage);
+                    }});
+                    put("framework", libType);
+                    put("username", username);
+                    put("avatar", avatar);
+                }}.toString()))
+                .build(), HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 401) {
             new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
@@ -66,7 +74,7 @@ public class AnalyticsBase {
         return response.statusCode() != 200;
     }
     protected boolean isOnCooldown() {
-        return new Date().getTime() - precedentPostDate.getTime() < 600000;
+        return new Date().getTime() - precedentPostDate.getTime() < 60000;
     }
 
     public EventsTracker getEventsToTrack() {
@@ -76,7 +84,8 @@ public class AnalyticsBase {
     public HttpResponse<String> post(String route, Object data) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseAPIUrl + route))
-                .header("Authorization", apiKey)
+                .header("Authorization", "Bot " + apiKey)
+                .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(data.toString()))
                 .build();
 
@@ -89,36 +98,18 @@ public class AnalyticsBase {
         return response;
     }
 
-    public HashMap<Object, Object> getDataNotSent() {
-        return dataNotSent;
+    public HashMap<Object, Object> getDataToSend() {
+        return dataToSend;
     }
-    public void putToDataNotSent(String key, Object value) {
-        dataNotSent.put(key, value);
+    public void putToDataToSend(String key, Object value) {
+        dataToSend.put(key, value);
     }
-    public void sendDataNotSent() {
-        if (dataNotSent.get("interactions") != null) {
-            try {
-                HttpResponse<String> response = post(ApiEndpoints.ROUTES.INTERACTIONS, dataNotSent.get("interactions"));
+    public void sendDataToSend() {
 
-                if (response.statusCode() == 200) dataNotSent.put("interactions", new HashMap<>());
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        if (dataNotSent.get("guilds") != null) {
-            try {
-                HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, dataNotSent.get("guilds"));
-
-                if (response.statusCode() == 200) dataNotSent.put("guilds", new HashMap<>());
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     public static String monthToNumber(String month) {
-        String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-        int monthIndex = Arrays.asList(months).indexOf(month);
+        int monthIndex = Arrays.asList(new String[]{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}).indexOf(month);
         return (monthIndex < 9 ? "0" : "") + (monthIndex + 1);
     }
 }

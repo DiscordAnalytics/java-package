@@ -28,7 +28,7 @@ public class D4JAnalytics extends AnalyticsBase {
     public D4JAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
         super(eventsToTrack, apiKey);
         this.client = client;
-        this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.TRACK_URL.replace("[id]", Objects.requireNonNull(client.getSelf().block()).id().asString());
+        this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", Objects.requireNonNull(client.getSelf().block().id().asString()));
     }
 
     private boolean isInvalidClient() {
@@ -49,7 +49,7 @@ public class D4JAnalytics extends AnalyticsBase {
         if (isInvalidClient()) return;
         assert userClient != null;
 
-        if (isConfigInvalid(userClient.id().asString(),LibType.DISCORD4J)) {
+        if (isConfigInvalid(userClient.username(), userClient.avatar().orElse(null), userClient.id().asString(), LibType.DISCORD4J)) {
             new IOException(ErrorCodes.INVALID_CONFIGURATION).printStackTrace();
             return;
         }
@@ -65,19 +65,21 @@ public class D4JAnalytics extends AnalyticsBase {
                         Flux<UserGuildData> clientGuilds = client.getGuilds();
                         Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
 
-                        HttpResponse<String> response = post(ApiEndpoints.ROUTES.INTERACTIONS, new HashMap<>() {{
-                            put("type", interaction.getType().getValue());
-                            put("name", interaction.getCommandInteraction().isPresent() ?
-                                    interaction.getCommandInteraction().get().getName().toString() :
-                                    interaction.getCommandInteraction().get().getCustomId().toString()
-                            );
-                            put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                            put("userCount", eventsToTrack.trackUserCount ? userCount : null);
-                            put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-                            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                        }}.toString());
+                        HttpResponse<String> response =
+                                post(ApiEndpoints.BOT_STATS.replace("[id]", userClient.id().asString()),
+                                        new HashMap<>() {{
+                                            put("type", interaction.getType().getValue());
+                                            put("name", interaction.getCommandInteraction().isPresent() ?
+                                                    interaction.getCommandInteraction().get().getName().toString() :
+                                                    interaction.getCommandInteraction().get().getCustomId().toString()
+                                            );
+                                            put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
+                                            put("userCount", eventsToTrack.trackUserCount ? userCount : null);
+                                            put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
+                                            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                                }}.toString());
 
-                        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getDataNotSent().get("interactions");
+                        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getDataToSend().get("interactions");
                         if (response.statusCode() != 200 & notSentInteraction.size() == 0) {
                             new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                             notSentInteraction.put("type", interaction.getType().getValue());
@@ -89,10 +91,10 @@ public class D4JAnalytics extends AnalyticsBase {
                             notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
                             notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                             notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                            putToDataNotSent("interactions", notSentInteraction);
+                            putToDataToSend("interactions", notSentInteraction);
                         }
 
-                        if (response.statusCode() == 200 && notSentInteraction.size() > 0) sendDataNotSent();
+                        if (response.statusCode() == 200 && notSentInteraction.size() > 0) sendDataToSend();
 
                         return Mono.empty();
                     } catch (IOException | InterruptedException e) {
@@ -125,17 +127,17 @@ public class D4JAnalytics extends AnalyticsBase {
                 put("userCount", eventsToTrack.trackUserCount ? userCount : null);
             }}.toString());
 
-            HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataNotSent().get("guilds");
+            HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
             if (response.statusCode() != 200) {
                 if (notSentGuild.size() == 0) new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                 notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
                 notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
                 notSentGuild.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
 
-                putToDataNotSent("guilds", notSentGuild);
+                putToDataToSend("guilds", notSentGuild);
             }
 
-            if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataNotSent();
+            if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
 
             return Mono.empty();
         } catch (IOException | InterruptedException e) {

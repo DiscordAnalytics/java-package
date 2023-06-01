@@ -56,7 +56,7 @@ public class InteractionTrackerListener extends ListenerAdapter {
         try {
             EventsTracker eventsToTrack = analytics.getEventsToTrack();
 
-            HttpResponse<String> response = analytics.post(ApiEndpoints.ROUTES.INTERACTIONS, new HashMap<>() {{
+            HttpResponse<String> response = analytics.post(ApiEndpoints.BOT_STATS, new HashMap<>() {{
                 put("type", type);
                 put("name", name);
                 put("userLocale", eventsToTrack.trackUserLanguage ? userLocale : null);
@@ -64,7 +64,7 @@ public class InteractionTrackerListener extends ListenerAdapter {
                 put("guildCount", eventsToTrack.trackGuilds ? guildCount : null);
                 put("date", date);
             }}.toString());
-            HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) analytics.getDataNotSent().get("interactions");
+            HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) analytics.getDataToSend().get("interactions");
             if (response.statusCode() != 200 && notSentInteraction.size() == 0) {
                 new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                 notSentInteraction.put("type", type);
@@ -73,10 +73,10 @@ public class InteractionTrackerListener extends ListenerAdapter {
                 notSentInteraction.put("userCount", userCount);
                 notSentInteraction.put("guildCount", guildCount);
                 notSentInteraction.put("date", date);
-                analytics.putToDataNotSent("interactions", notSentInteraction);
+                analytics.putToDataToSend("interactions", notSentInteraction);
             }
 
-            if (response.statusCode() == 200 && notSentInteraction.size() > 0) analytics.sendDataNotSent();
+            if (response.statusCode() == 200 && notSentInteraction.size() > 0) analytics.sendDataToSend();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
