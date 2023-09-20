@@ -1,4 +1,4 @@
-package example;
+package example.d4j;
 
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;

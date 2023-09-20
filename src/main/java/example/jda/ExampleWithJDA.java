@@ -1,6 +1,5 @@
-package example;
+package example.jda;
 
-import example.jda.ReadyListener;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 

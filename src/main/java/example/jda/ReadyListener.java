@@ -1,7 +1,7 @@
 package example.jda;
 
-import discord4j.core.event.domain.lifecycle.ReadyEvent;
-import discord4j.core.object.entity.User;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
 import xyz.discordanalytics.JDAAnalytics;
 import xyz.discordanalytics.utilities.EventsTracker;
 import net.dv8tion.jda.api.events.GenericEvent;
@@ -14,8 +14,8 @@ public class ReadyListener implements EventListener {
     @Override
     public void onEvent(@NotNull GenericEvent genericEvent) {
         if (genericEvent instanceof ReadyEvent) {
-            final User self = ((ReadyEvent) genericEvent).getSelf();
-            System.out.printf("Logged in as %s#%s%n", self.getUsername(), self.getDiscriminator());
+            final User self = genericEvent.getJDA().getSelfUser();
+            System.out.printf("Logged in as %s%n", self.getName());
 
             // Initialize what you want to track
             EventsTracker eventsTracker = new EventsTracker();

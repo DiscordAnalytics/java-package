@@ -66,8 +66,7 @@ public class D4JAnalytics extends AnalyticsBase {
                         Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
 
                         HttpResponse<String> response =
-                                post(ApiEndpoints.BOT_STATS.replace("[id]", userClient.id().asString()),
-                                        new HashMap<>() {{
+                                post(new HashMap<>() {{
                                             put("type", interaction.getType().getValue());
                                             put("name", interaction.getCommandInteraction().isPresent() ?
                                                     interaction.getCommandInteraction().get().getName().toString() :
@@ -79,7 +78,7 @@ public class D4JAnalytics extends AnalyticsBase {
                                             put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
                                 }}.toString());
 
-                        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getDataToSend().get("interactions");
+                        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getData().get("interactions");
                         if (response.statusCode() != 200 & notSentInteraction.size() == 0) {
                             new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
                             notSentInteraction.put("type", interaction.getType().getValue());
@@ -116,32 +115,28 @@ public class D4JAnalytics extends AnalyticsBase {
     private Mono<Object> trackGuilds() {
         if (isOnCooldown()) return Mono.empty();
 
-        try {
-            String[] date = new Date().toString().split(" ");
-            Flux<UserGuildData> clientGuilds = client.getGuilds();
-            Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
+        // String[] date = new Date().toString().split(" ");
+        // Flux<UserGuildData> clientGuilds = client.getGuilds();
+        // Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
 
-            HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, new HashMap<>() {{
-                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-                put("userCount", eventsToTrack.trackUserCount ? userCount : null);
-            }}.toString());
+        // HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, new HashMap<>() {{
+        //     put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+        //     put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
+        //     put("userCount", eventsToTrack.trackUserCount ? userCount : null);
+        // }}.toString());
 
-            HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
-            if (response.statusCode() != 200) {
-                if (notSentGuild.size() == 0) new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-                notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-                notSentGuild.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
+        // HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
+        // if (response.statusCode() != 200) {
+        //     if (notSentGuild.size() == 0) new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+        //     notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+        //     notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
+        //     notSentGuild.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
 
-                putToDataToSend("guilds", notSentGuild);
-            }
+        //     putToDataToSend("guilds", notSentGuild);
+        // }
 
-            if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
+        // if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
 
-            return Mono.empty();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        return Mono.empty();
     }
 }

@@ -1,4 +1,4 @@
-package example;
+package example.javacord;
 
 import xyz.discordanalytics.JavacordAnalytics;
 import xyz.discordanalytics.utilities.EventsTracker;

@@ -1,84 +1,124 @@
 package xyz.discordanalytics.jda;
 
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.Interaction;
+import net.dv8tion.jda.api.interactions.InteractionType;
+import net.dv8tion.jda.api.interactions.commands.CommandAutoCompleteInteraction;
 import net.dv8tion.jda.api.interactions.commands.SlashCommandInteraction;
+import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
+import net.dv8tion.jda.api.interactions.modals.ModalInteraction;
 import org.jetbrains.annotations.NotNull;
 import xyz.discordanalytics.AnalyticsBase;
 import xyz.discordanalytics.JDAAnalytics;
-import xyz.discordanalytics.utilities.ApiEndpoints;
-import xyz.discordanalytics.utilities.ErrorCodes;
-import xyz.discordanalytics.utilities.EventsTracker;
+import xyz.discordanalytics.utilities.InteractionItem;
+import xyz.discordanalytics.utilities.LocalesItems;
 
-import java.io.IOException;
-import java.net.http.HttpResponse;
-import java.util.Date;
-import java.util.HashMap;
+import java.util.*;
 
 public class InteractionTrackerListener extends ListenerAdapter {
     private final JDA client;
-    private Date precedentPostDate;
     private final JDAAnalytics analytics;
 
     public InteractionTrackerListener(JDAAnalytics analytics) {
         this.client = analytics.getClient();
-        this.precedentPostDate = new Date();
         this.analytics = analytics;
     }
 
-    private boolean isOnCooldown() {
-        return new Date().getTime() - precedentPostDate.getTime() < 600000;
+    public InteractionItem parseStringToInteractionItem(String string) {
+        String[] split = string.split(", ");
+        String name = split[0].replace("{name: \"", "").replace("\"", "");
+        int type = Integer.parseInt(split[1].replace("type: ", ""));
+        int number = Integer.parseInt(split[2].replace("number: ", "").replace("}", ""));
+        return new InteractionItem(name, type, number);
+    }
+
+    public LocalesItems parseStringToLocalesItems(String string) {
+        String[] split = string.split(", ");
+        String locale = split[0].replace("{locale: \"", "").replace("\"", "");
+        int number = Integer.parseInt(split[1].replace("number: ", "").replace("}", ""));
+        return new LocalesItems(locale, number);
     }
 
     @Override
-    public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        if (isOnCooldown()) return;
-
-        SlashCommandInteraction interaction = event.getInteraction();
-        String[] date = new Date().toString().split(" ");
-
+    public void onGenericInteractionCreate(@NotNull GenericInteractionCreateEvent event) {
         try {
-            post(interaction.getType().toString(),
-                    interaction.getName(),
-                    interaction.getUserLocale().getLocale(),
-                    client.getUsers().size(),
-                    client.getGuilds().size(),
-                    date[5] + "-" + AnalyticsBase.monthToNumber(date[1]) + "-" + date[2]
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        precedentPostDate = new Date();
-    }
+            Number guildCount = analytics.getEventsToTrack().trackGuilds ? client.getGuilds().size() : null;
+            Number userCount = analytics.getEventsToTrack().trackUserCount ? client.getUsers().size() : null;
+            ArrayList<String> guildsLocales = (ArrayList<String>) analytics.getData().get("guildsLocales");
+            ArrayList<String> locales = (ArrayList<String>) analytics.getData().get("locales");
+            ArrayList<String> interactions = (ArrayList<String>) analytics.getData().get("interactions");
 
-    private void post(String type, String name, String userLocale, int userCount, int guildCount, String date) throws IOException {
-        try {
-            EventsTracker eventsToTrack = analytics.getEventsToTrack();
+            String[] date = new Date().toString().split(" ");
+            String dateString = date[5] + "-" + AnalyticsBase.monthToNumber(date[1]) + "-" + date[2];
 
-            HttpResponse<String> response = analytics.post(ApiEndpoints.BOT_STATS, new HashMap<>() {{
-                put("type", type);
-                put("name", name);
-                put("userLocale", eventsToTrack.trackUserLanguage ? userLocale : null);
-                put("userCount", eventsToTrack.trackUserCount ? userCount : null);
-                put("guildCount", eventsToTrack.trackGuilds ? guildCount : null);
-                put("date", date);
-            }}.toString());
-            HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) analytics.getDataToSend().get("interactions");
-            if (response.statusCode() != 200 && notSentInteraction.size() == 0) {
-                new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-                notSentInteraction.put("type", type);
-                notSentInteraction.put("name", name);
-                notSentInteraction.put("userLocale", userLocale);
-                notSentInteraction.put("userCount", userCount);
-                notSentInteraction.put("guildCount", guildCount);
-                notSentInteraction.put("date", date);
-                analytics.putToDataToSend("interactions", notSentInteraction);
+            DiscordLocale guildLocale = event.getGuild() != null ? event.getGuildLocale() : null;
+            String guildLocaleString = guildLocale != null ? guildLocale.getLocale() : null;
+            if (guildLocaleString != null) {
+                boolean isGLTracked = false;
+                for (int i = 0; i < guildsLocales.size(); i++) {
+                    LocalesItems item = parseStringToLocalesItems(guildsLocales.get(i));
+                    if (item.locale.equals(guildLocaleString)) {
+                        item.number++;
+                        guildsLocales.set(i, item.toString());
+                        isGLTracked = true;
+                        break;
+                    }
+                }
+                if (!isGLTracked) guildsLocales.add(new LocalesItems(guildLocaleString, 1).toString());
             }
 
-            if (response.statusCode() == 200 && notSentInteraction.size() > 0) analytics.sendDataToSend();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            DiscordLocale userLocale = event.getUserLocale();
+            String userLocaleString = userLocale.getLocale();
+            boolean isULTracked = false;
+            for (int i = 0; i < locales.size(); i++) {
+                LocalesItems item = parseStringToLocalesItems(locales.get(i));
+                if (item.locale.equals(userLocaleString)) {
+                    item.number++;
+                    locales.set(i, item.toString());
+                    isULTracked = true;
+                    break;
+                }
+            }
+            if (!isULTracked) locales.add(new LocalesItems(userLocaleString, 1).toString());
+
+            Interaction interaction = event.getInteraction();
+            int interactionType = interaction.getType().getKey();
+            String interactionName =
+                    interactionType == InteractionType.COMMAND.getKey()
+                            ? ((SlashCommandInteraction) interaction).getName()
+                                : interactionType == InteractionType.COMPONENT.getKey()
+                                ? ((ComponentInteraction) interaction).getComponentId()
+                                    : interactionType == InteractionType.COMMAND_AUTOCOMPLETE.getKey()
+                                    ? ((CommandAutoCompleteInteraction) interaction).getName()
+                                        : interactionType == InteractionType.MODAL_SUBMIT.getKey()
+                                        ? ((ModalInteraction) interaction).getModalId()
+                                            : null;
+
+            boolean isITracked = false;
+            for (int i = 0; i < interactions.size(); i++) {
+                InteractionItem item = parseStringToInteractionItem(interactions.get(i));
+                if (item.name.equals(interactionName)) {
+                    item.number++;
+                    interactions.set(i, item.toString());
+                    isITracked = true;
+                    break;
+                }
+            }
+            if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
+
+            analytics.setData(new HashMap<>() {{
+                put("date", dateString);
+                put("guilds", guildCount);
+                put("users", userCount);
+                put("interactions", interactions);
+                put("locales", locales);
+                put("guildsLocales", guildsLocales);
+            }});
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

@@ -1,5 +1,6 @@
 package xyz.discordanalytics;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.SelfUser;
 import xyz.discordanalytics.jda.InteractionTrackerListener;
@@ -9,6 +10,10 @@ import xyz.discordanalytics.utilities.EventsTracker;
 import xyz.discordanalytics.utilities.LibType;
 
 import java.io.IOException;
+import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 
 public class JDAAnalytics extends AnalyticsBase {
     private final JDA client;
@@ -17,6 +22,14 @@ public class JDAAnalytics extends AnalyticsBase {
         super(eventsToTrack, apiKey);
         this.client = jda;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getSelfUser().getId());
+        this.setData(new HashMap<>() {{
+            put("date", new Date().toString());
+            put("guilds", client.getGuilds().size());
+            put("users", client.getUsers().size());
+            put("interactions", new ArrayList<>());
+            put("locales", new ArrayList<>());
+            put("guildsLocales", new ArrayList<>());
+        }});
     }
 
     public JDA getClient() {
@@ -41,5 +54,63 @@ public class JDAAnalytics extends AnalyticsBase {
         }
 
         if (eventsToTrack.trackInteractions) client.addEventListener(new InteractionTrackerListener(this));
+
+        new Thread(() -> {
+            while (true) {
+                try {
+                    postStats();
+                    Thread.sleep(60000);
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
+    public void postStats() throws IOException, InterruptedException {
+        Number guildCount = eventsToTrack.trackGuilds ? client.getGuilds().size() : null;
+        Number userCount = eventsToTrack.trackUserCount ? client.getUsers().size() : null;
+
+        HashMap<String, Object> data = super.getData();
+
+        if (
+                data.get("guilds") == guildCount
+                && data.get("users") == userCount
+                && ((ArrayList<String>) data.get("interactions")).size() == 0
+                && ((ArrayList<String>) data.get("locales")).size() == 0
+                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
+        ) return;
+
+        HttpResponse<String> response = super.post(new ObjectMapper()
+                .writeValueAsString(data));
+
+        if (response.statusCode() == 401) {
+            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 429) {
+            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 423) {
+            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            return;
+        }
+        if (response.statusCode() != 200) {
+            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+            return;
+        }
+
+        if (response.statusCode() == 200) {
+            String[] date = new Date().toString().split(" ");
+            super.setData(new HashMap<>() {{
+                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                put("guilds", guildCount);
+                put("users", userCount);
+                put("interactions", new ArrayList<>());
+                put("locales", new ArrayList<>());
+                put("guildsLocales", new ArrayList<>());
+            }});
+        }
     }
 }

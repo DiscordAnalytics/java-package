@@ -1,5 +1,6 @@
 package xyz.discordanalytics;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import xyz.discordanalytics.utilities.ApiEndpoints;
 import xyz.discordanalytics.utilities.ErrorCodes;
 import xyz.discordanalytics.utilities.EventsTracker;
@@ -9,6 +10,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -17,7 +19,7 @@ public class AnalyticsBase {
     protected final EventsTracker eventsToTrack;
     protected final String apiKey;
     protected final HttpClient httpClient;
-    protected final HashMap<Object, Object> dataToSend;
+    protected HashMap<String, Object> dataToSend;
     protected Date precedentPostDate;
     protected String baseAPIUrl;
 
@@ -31,31 +33,34 @@ public class AnalyticsBase {
             put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
             put("guilds", 0);
             put("users", 0);
-            put("interactions", new HashMap<>());
-            put("locales", new HashMap<>());
-            put("guildsLocales", new HashMap<>());
+            put("interactions", new ArrayList<>());
+            put("locales", new ArrayList<>());
+            put("guildsLocales", new ArrayList<>());
         }};
-        this.precedentPostDate = new Date();
     }
 
     protected boolean isConfigInvalid(String username, String avatar, String id, String libType) throws IOException, InterruptedException {
+        HashMap<String, Object> data = new HashMap<>() {{
+            put("settings", new HashMap<>() {{
+                put("trackGuilds", eventsToTrack.trackGuilds);
+                put("trackGuildsLocale", eventsToTrack.trackGuildsLocale);
+                put("trackInteractions", eventsToTrack.trackInteractions);
+                put("trackUserCount", eventsToTrack.trackUserCount);
+                put("trackUserLanguage", eventsToTrack.trackUserLanguage);
+            }});
+            put("framework", libType);
+            put("username", username);
+            put("avatar", avatar);
+        }};
+
+        ObjectMapper mapper = new ObjectMapper();
+        String json = mapper.writeValueAsString(data);
 
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                 .uri(URI.create(ApiEndpoints.BASE_URL + ApiEndpoints.BOT_URL.replace("[id]", id)))
                 .header("Authorization", "Bot " + apiKey)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(new HashMap<>() {{
-                    put("settings", new HashMap<>() {{
-                        put("trackGuilds", eventsToTrack.trackGuilds);
-                        put("trackGuildsLocale", eventsToTrack.trackGuildsLocale);
-                        put("trackInteractions", eventsToTrack.trackInteractions);
-                        put("trackUserCount", eventsToTrack.trackUserCount);
-                        put("trackUserLanguage", eventsToTrack.trackUserLanguage);
-                    }});
-                    put("framework", libType);
-                    put("username", username);
-                    put("avatar", avatar);
-                }}.toString()))
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(json))
                 .build(), HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 401) {
@@ -66,7 +71,7 @@ public class AnalyticsBase {
             new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
             return true;
         }
-        if (response.statusCode() == 451) {
+        if (response.statusCode() == 423) {
             new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
             return true;
         }
@@ -81,31 +86,44 @@ public class AnalyticsBase {
         return eventsToTrack;
     }
 
-    public HttpResponse<String> post(String route, Object data) throws IOException, InterruptedException {
+    public HttpResponse<String> post(String data) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseAPIUrl + route))
+                .uri(URI.create(baseAPIUrl))
                 .header("Authorization", "Bot " + apiKey)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(data.toString()))
+                .POST(HttpRequest.BodyPublishers.ofString(data))
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 401) new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
         if (response.statusCode() == 429) new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-        if (response.statusCode() == 451) new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+        if (response.statusCode() == 423) new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
 
         return response;
     }
 
-    public HashMap<Object, Object> getDataToSend() {
+    public HashMap<String, Object> getData() {
         return dataToSend;
     }
+    public void setData(HashMap<String, Object> data) {
+        dataToSend = data;
+    }
+
     public void putToDataToSend(String key, Object value) {
         dataToSend.put(key, value);
     }
     public void sendDataToSend() {
-
+        try {
+            post(new ObjectMapper().writeValueAsString(dataToSend));
+            dataToSend.put("guilds", 0);
+            dataToSend.put("users", 0);
+            dataToSend.put("interactions", new ArrayList<>());
+            dataToSend.put("locales", new ArrayList<>());
+            dataToSend.put("guildsLocales", new ArrayList<>());
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public static String monthToNumber(String month) {

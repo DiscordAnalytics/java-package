@@ -1,5 +1,6 @@
 package xyz.discordanalytics;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.user.User;
 import org.javacord.api.interaction.Interaction;
@@ -53,16 +54,25 @@ public class JavacordAnalytics extends AnalyticsBase {
                     Interaction interaction = listener.getInteraction();
                     String[] date = new Date().toString().split(" ");
 
-                    HttpResponse<String> response = post(ApiEndpoints.BOT_STATS, new HashMap<>() {{
+                    // new HashMap<>() {{
+                    //                        put("type", interaction.getType().toString());
+                    //                        put("name", interaction.getIdAsString());
+                    //                        put("userLocale", null); // because it's not possible to get the user locale
+                    //                        put("users", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
+                    //                        put("guilds", eventsToTrack.trackGuilds ? client.getServers().size() : null);
+                    //                        put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                    //                    }}
+
+                    HttpResponse<String> response = post(new ObjectMapper().writeValueAsString(new HashMap<>() {{
                         put("type", interaction.getType().toString());
                         put("name", interaction.getIdAsString());
                         put("userLocale", null); // because it's not possible to get the user locale
                         put("users", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
                         put("guilds", eventsToTrack.trackGuilds ? client.getServers().size() : null);
                         put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                    }});
+                    }}));
 
-                    HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getDataToSend().get("interactions");
+                    HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getData().get("interactions");
                     if (response.statusCode() != 200) {
                         notSentInteraction.put("type", interaction.getType().getValue());
                         notSentInteraction.put("name", interaction.getIdAsString());
@@ -91,30 +101,29 @@ public class JavacordAnalytics extends AnalyticsBase {
     private void trackGuilds() {
         if (isOnCooldown()) {
             new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return;
         }
 
-        try {
-            String[] date = new Date().toString().split(" ");
+        // try {
+        //     String[] date = new Date().toString().split(" ");
 
-            HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, new HashMap<>() {{
-                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-                put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
-            }});
+        //     HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, new HashMap<>() {{
+        //         put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+        //         put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
+        //         put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
+        //     }});
 
-            HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
-            if (response.statusCode() != 200) {
-                notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-                notSentGuild.put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
+        //     HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
+        //     if (response.statusCode() != 200) {
+        //         notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+        //         notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
+        //         notSentGuild.put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
 
-                putToDataToSend("guilds", notSentGuild);
-            }
+        //         putToDataToSend("guilds", notSentGuild);
+        //     }
 
-            if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        //     if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
+        // } catch (IOException | InterruptedException e) {
+        //     throw new RuntimeException(e);
+        // }
     }
 }
