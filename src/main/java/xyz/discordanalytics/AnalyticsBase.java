@@ -1,9 +1,7 @@
 package xyz.discordanalytics;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import xyz.discordanalytics.utilities.ApiEndpoints;
-import xyz.discordanalytics.utilities.ErrorCodes;
-import xyz.discordanalytics.utilities.EventsTracker;
+import xyz.discordanalytics.utilities.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +35,21 @@ public class AnalyticsBase {
             put("locales", new ArrayList<>());
             put("guildsLocales", new ArrayList<>());
         }};
+    }
+
+    public InteractionItem parseStringToInteractionItem(String string) {
+        String[] split = string.split(", ");
+        String name = split[0].replace("{name: \"", "").replace("\"", "");
+        int type = Integer.parseInt(split[1].replace("type: ", ""));
+        int number = Integer.parseInt(split[2].replace("number: ", "").replace("}", ""));
+        return new InteractionItem(name, type, number);
+    }
+
+    public LocalesItems parseStringToLocalesItems(String string) {
+        String[] split = string.split(", ");
+        String locale = split[0].replace("{locale: \"", "").replace("\"", "");
+        int number = Integer.parseInt(split[1].replace("number: ", "").replace("}", ""));
+        return new LocalesItems(locale, number);
     }
 
     protected boolean isConfigInvalid(String username, String avatar, String id, String libType) throws IOException, InterruptedException {

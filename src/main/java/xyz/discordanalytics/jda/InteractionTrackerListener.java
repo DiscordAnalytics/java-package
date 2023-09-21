@@ -27,21 +27,6 @@ public class InteractionTrackerListener extends ListenerAdapter {
         this.analytics = analytics;
     }
 
-    public InteractionItem parseStringToInteractionItem(String string) {
-        String[] split = string.split(", ");
-        String name = split[0].replace("{name: \"", "").replace("\"", "");
-        int type = Integer.parseInt(split[1].replace("type: ", ""));
-        int number = Integer.parseInt(split[2].replace("number: ", "").replace("}", ""));
-        return new InteractionItem(name, type, number);
-    }
-
-    public LocalesItems parseStringToLocalesItems(String string) {
-        String[] split = string.split(", ");
-        String locale = split[0].replace("{locale: \"", "").replace("\"", "");
-        int number = Integer.parseInt(split[1].replace("number: ", "").replace("}", ""));
-        return new LocalesItems(locale, number);
-    }
-
     @Override
     public void onGenericInteractionCreate(@NotNull GenericInteractionCreateEvent event) {
         try {
@@ -59,7 +44,7 @@ public class InteractionTrackerListener extends ListenerAdapter {
             if (guildLocaleString != null) {
                 boolean isGLTracked = false;
                 for (int i = 0; i < guildsLocales.size(); i++) {
-                    LocalesItems item = parseStringToLocalesItems(guildsLocales.get(i));
+                    LocalesItems item = analytics.parseStringToLocalesItems(guildsLocales.get(i));
                     if (item.locale.equals(guildLocaleString)) {
                         item.number++;
                         guildsLocales.set(i, item.toString());
@@ -74,7 +59,7 @@ public class InteractionTrackerListener extends ListenerAdapter {
             String userLocaleString = userLocale.getLocale();
             boolean isULTracked = false;
             for (int i = 0; i < locales.size(); i++) {
-                LocalesItems item = parseStringToLocalesItems(locales.get(i));
+                LocalesItems item = analytics.parseStringToLocalesItems(locales.get(i));
                 if (item.locale.equals(userLocaleString)) {
                     item.number++;
                     locales.set(i, item.toString());
@@ -99,7 +84,7 @@ public class InteractionTrackerListener extends ListenerAdapter {
 
             boolean isITracked = false;
             for (int i = 0; i < interactions.size(); i++) {
-                InteractionItem item = parseStringToInteractionItem(interactions.get(i));
+                InteractionItem item = analytics.parseStringToInteractionItem(interactions.get(i));
                 if (item.name.equals(interactionName)) {
                     item.number++;
                     interactions.set(i, item.toString());

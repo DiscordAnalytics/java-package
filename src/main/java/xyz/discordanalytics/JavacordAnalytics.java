@@ -3,14 +3,12 @@ package xyz.discordanalytics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.user.User;
-import org.javacord.api.interaction.Interaction;
-import xyz.discordanalytics.utilities.ApiEndpoints;
-import xyz.discordanalytics.utilities.ErrorCodes;
-import xyz.discordanalytics.utilities.EventsTracker;
-import xyz.discordanalytics.utilities.LibType;
+import org.javacord.api.interaction.*;
+import xyz.discordanalytics.utilities.*;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -21,6 +19,14 @@ public class JavacordAnalytics extends AnalyticsBase {
         super(eventsToTrack, apiKey);
         this.client = api;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getYourself().getIdAsString());
+        this.setData(new HashMap<>() {{
+            put("date", new Date().toString());
+            put("guilds", client.getServers().size());
+            put("users", client.getCachedUsers().size());
+            put("interactions", new ArrayList<>());
+            put("locales", new ArrayList<>());
+            put("guildsLocales", new ArrayList<>());
+        }});
     }
 
     private boolean isInvalidClient() {
@@ -48,82 +54,141 @@ public class JavacordAnalytics extends AnalyticsBase {
 
         if (eventsToTrack.trackInteractions) {
             client.addInteractionCreateListener(listener -> {
-                if (isOnCooldown()) return;
-
                 try {
-                    Interaction interaction = listener.getInteraction();
+                    Number guildCount = eventsToTrack.trackGuilds ? client.getServers().size() : null;
+                    Number userCount = eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null;
+                    ArrayList<String> guildsLocales = (ArrayList<String>) getData().get("guildsLocales");
+                    ArrayList<String> locales = (ArrayList<String>) getData().get("locales");
+                    ArrayList<String> interactions = (ArrayList<String>) getData().get("interactions");
+
                     String[] date = new Date().toString().split(" ");
+                    String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
 
-                    // new HashMap<>() {{
-                    //                        put("type", interaction.getType().toString());
-                    //                        put("name", interaction.getIdAsString());
-                    //                        put("userLocale", null); // because it's not possible to get the user locale
-                    //                        put("users", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
-                    //                        put("guilds", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-                    //                        put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                    //                    }}
-
-                    HttpResponse<String> response = post(new ObjectMapper().writeValueAsString(new HashMap<>() {{
-                        put("type", interaction.getType().toString());
-                        put("name", interaction.getIdAsString());
-                        put("userLocale", null); // because it's not possible to get the user locale
-                        put("users", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
-                        put("guilds", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-                        put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                    }}));
-
-                    HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getData().get("interactions");
-                    if (response.statusCode() != 200) {
-                        notSentInteraction.put("type", interaction.getType().getValue());
-                        notSentInteraction.put("name", interaction.getIdAsString());
-                        notSentInteraction.put("userLocale", null); // because it's not possible to get the user locale
-                        notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
-                        notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-                        notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-
-                        putToDataToSend("interactions", notSentInteraction);
+                    DiscordLocale guildLocale = listener.getInteraction().getServerLocale().isPresent() ? listener.getInteraction().getServerLocale().get() : null;
+                    String guildLocaleString = guildLocale != null ? listener.getInteraction().getServerLocale().get().getLocaleCode() : null;
+                    if (guildLocaleString != null) {
+                        boolean isGLTracked = false;
+                        for (int i = 0; i < guildsLocales.size(); i++) {
+                            LocalesItems item = parseStringToLocalesItems(guildsLocales.get(i));
+                            if (item.locale.equals(guildLocaleString)) {
+                                item.number++;
+                                guildsLocales.set(i, item.toString());
+                                isGLTracked = true;
+                                break;
+                            }
+                        }
+                        if (!isGLTracked) guildsLocales.add(new LocalesItems(guildLocaleString, 1).toString());
                     }
 
-                    if (response.statusCode() == 200 && notSentInteraction.size() > 0) sendDataToSend();
-                } catch (IOException | InterruptedException e) {
-                    throw new RuntimeException(e);
+                    DiscordLocale userLocale = listener.getInteraction().getLocale();
+                    String userLocaleString = userLocale.getLocaleCode();
+                    boolean isULTracked = false;
+                    for (int i = 0; i < locales.size(); i++) {
+                        LocalesItems item = parseStringToLocalesItems(locales.get(i));
+                        if (item.locale.equals(userLocaleString)) {
+                            item.number++;
+                            locales.set(i, item.toString());
+                            isULTracked = true;
+                            break;
+                        }
+                    }
+                    if (!isULTracked) locales.add(new LocalesItems(userLocaleString, 1).toString());
+
+                    Interaction interaction = listener.getInteraction();
+                    int interactionType = interaction.getType().getValue();
+                    String interactionName =
+                            interactionType == InteractionType.APPLICATION_COMMAND.getValue()
+                                    ? ((ApplicationCommandInteraction) interaction).getCommandName()
+                                        : interactionType == InteractionType.MESSAGE_COMPONENT.getValue()
+                                        ? ((MessageComponentInteraction) interaction).getCustomId()
+                                            : interactionType == InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE.getValue()
+                                            ? ((AutocompleteInteraction) interaction).getCommandName()
+                                                : interactionType == InteractionType.MODAL_SUBMIT.getValue()
+                                                ? ((ModalInteraction) interaction).getCustomId()
+                                                    : null;
+
+                    boolean isITracked = false;
+                    for (int i = 0; i < interactions.size(); i++) {
+                        InteractionItem item = parseStringToInteractionItem(interactions.get(i));
+                        if (item.name.equals(interactionName)) {
+                            item.number++;
+                            interactions.set(i, item.toString());
+                            isITracked = true;
+                            break;
+                        }
+                    }
+                    if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
+
+                    setData(new HashMap<>() {{
+                        put("date", dateString);
+                        put("guilds", guildCount);
+                        put("users", userCount);
+                        put("interactions", interactions);
+                        put("locales", locales);
+                        put("guildsLocales", guildsLocales);
+                    }});
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             });
         }
-        if (eventsToTrack.trackGuilds) {
-            client.addServerJoinListener(listener -> trackGuilds());
-            client.addServerLeaveListener(listener -> trackGuilds());
-        }
 
-        precedentPostDate = new Date();
+        new Thread(() -> {
+            while (true) {
+                try {
+                    postStats();
+                    Thread.sleep(60000*5);
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
-    private void trackGuilds() {
-        if (isOnCooldown()) {
+    public void postStats() throws IOException, InterruptedException {
+        Number guildCount = eventsToTrack.trackGuilds ? client.getServers().size() : null;
+        Number userCount = eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null;
+
+        HashMap<String, Object> data = super.getData();
+
+        if (
+                data.get("guilds") == guildCount
+                && data.get("users") == userCount
+                && ((ArrayList<String>) data.get("interactions")).size() == 0
+                && ((ArrayList<String>) data.get("locales")).size() == 0
+                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
+        ) return;
+
+        HttpResponse<String> response = super.post(new ObjectMapper()
+                .writeValueAsString(data));
+
+        if (response.statusCode() == 401) {
+            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 429) {
             new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 423) {
+            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            return;
+        }
+        if (response.statusCode() != 200) {
+            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+            return;
         }
 
-        // try {
-        //     String[] date = new Date().toString().split(" ");
-
-        //     HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, new HashMap<>() {{
-        //         put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-        //         put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-        //         put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
-        //     }});
-
-        //     HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
-        //     if (response.statusCode() != 200) {
-        //         notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-        //         notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? client.getServers().size() : null);
-        //         notSentGuild.put("userCount", eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null);
-
-        //         putToDataToSend("guilds", notSentGuild);
-        //     }
-
-        //     if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
-        // } catch (IOException | InterruptedException e) {
-        //     throw new RuntimeException(e);
-        // }
+        if (response.statusCode() == 200) {
+            String[] date = new Date().toString().split(" ");
+            super.setData(new HashMap<>() {{
+                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                put("guilds", guildCount);
+                put("users", userCount);
+                put("interactions", new ArrayList<>());
+                put("locales", new ArrayList<>());
+                put("guildsLocales", new ArrayList<>());
+            }});
+        }
     }
 }

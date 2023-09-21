@@ -18,6 +18,7 @@ import xyz.discordanalytics.utilities.LibType;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Objects;
@@ -28,7 +29,15 @@ public class D4JAnalytics extends AnalyticsBase {
     public D4JAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
         super(eventsToTrack, apiKey);
         this.client = client;
-        this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", Objects.requireNonNull(client.getSelf().block().id().asString()));
+        this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", Objects.requireNonNull(Objects.requireNonNull(client.getSelf().block()).id().asString()));
+        this.setData(new HashMap<>() {{
+            put("date", new Date().toString());
+            put("guilds", client.getGuilds().count().block());
+            put("users", client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block());
+            put("interactions", new ArrayList<>());
+            put("locales", new ArrayList<>());
+            put("guildsLocales", new ArrayList<>());
+        }});
     }
 
     private boolean isInvalidClient() {

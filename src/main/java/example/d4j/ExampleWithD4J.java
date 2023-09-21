@@ -21,7 +21,7 @@ public class ExampleWithD4J {
             gateway.on(ReadyEvent.class, event ->
                 Mono.fromRunnable(() -> {
                     final User self = event.getSelf();
-                    System.out.printf("Logged in as %s#%s%n", self.getUsername(), self.getDiscriminator());
+                    System.out.printf("Logged in as %s%n", self.getUsername());
 
                     // Initialize what you want to track
                     EventsTracker eventsTracker = new EventsTracker();

@@ -59,7 +59,7 @@ public class JDAAnalytics extends AnalyticsBase {
             while (true) {
                 try {
                     postStats();
-                    Thread.sleep(60000);
+                    Thread.sleep(60000*5);
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
