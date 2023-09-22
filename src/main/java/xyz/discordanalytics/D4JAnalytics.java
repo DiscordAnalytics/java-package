@@ -1,43 +1,50 @@
 package xyz.discordanalytics;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
-import discord4j.core.event.domain.guild.GuildCreateEvent;
-import discord4j.core.event.domain.guild.GuildDeleteEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.object.command.Interaction;
 import discord4j.discordjson.json.UserData;
-import discord4j.discordjson.json.UserGuildData;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import xyz.discordanalytics.utilities.ApiEndpoints;
-import xyz.discordanalytics.utilities.ErrorCodes;
-import xyz.discordanalytics.utilities.EventsTracker;
-import xyz.discordanalytics.utilities.LibType;
+import xyz.discordanalytics.utilities.*;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 
 public class D4JAnalytics extends AnalyticsBase {
     private final DiscordClient client;
+
+    private Number guildCount;
+    private Number userCount;
+    private ArrayList<String> guildsLocales;
+    private ArrayList<String> locales;
+    private ArrayList<String> interactions;
 
     public D4JAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
         super(eventsToTrack, apiKey);
         this.client = client;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", Objects.requireNonNull(Objects.requireNonNull(client.getSelf().block()).id().asString()));
+
+        String[] date = new Date().toString().split(" ");
+        String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
+
         this.setData(new HashMap<>() {{
-            put("date", new Date().toString());
+            put("date", dateString);
             put("guilds", client.getGuilds().count().block());
             put("users", client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block());
             put("interactions", new ArrayList<>());
             put("locales", new ArrayList<>());
             put("guildsLocales", new ArrayList<>());
         }});
+
+        this.guildCount = (Number) getData().get("guilds");
+        this.userCount = (Number) getData().get("users");
+        this.guildsLocales = (ArrayList<String>) getData().get("guildsLocales");
+        this.locales = (ArrayList<String>) getData().get("locales");
+        this.interactions = (ArrayList<String>) getData().get("interactions");
     }
 
     private boolean isInvalidClient() {
@@ -66,86 +73,134 @@ public class D4JAnalytics extends AnalyticsBase {
         client.withGateway((GatewayDiscordClient gateway) -> {
             if (eventsToTrack.trackInteractions) {
                 gateway.on(InteractionCreateEvent.class, event -> {
-                    if (isOnCooldown()) return Mono.empty();
+                    String[] date = new Date().toString().split(" ");
+                    String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
 
-                    try {
-                        Interaction interaction = event.getInteraction();
-                        String[] date = new Date().toString().split(" ");
-                        Flux<UserGuildData> clientGuilds = client.getGuilds();
-                        Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
-
-                        HttpResponse<String> response =
-                                post(new HashMap<>() {{
-                                            put("type", interaction.getType().getValue());
-                                            put("name", interaction.getCommandInteraction().isPresent() ?
-                                                    interaction.getCommandInteraction().get().getName().toString() :
-                                                    interaction.getCommandInteraction().get().getCustomId().toString()
-                                            );
-                                            put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                                            put("userCount", eventsToTrack.trackUserCount ? userCount : null);
-                                            put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-                                            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                                }}.toString());
-
-                        HashMap<Object, Object> notSentInteraction = (HashMap<Object, Object>) getData().get("interactions");
-                        if (response.statusCode() != 200 & notSentInteraction.size() == 0) {
-                            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-                            notSentInteraction.put("type", interaction.getType().getValue());
-                            notSentInteraction.put("name", interaction.getCommandInteraction().isPresent() ?
-                                    interaction.getCommandInteraction().get().getName().toString() :
-                                    interaction.getCommandInteraction().get().getCustomId().toString()
-                            );
-                            notSentInteraction.put("userLocale", eventsToTrack.trackUserLanguage ? interaction.getUserLocale() : null);
-                            notSentInteraction.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
-                            notSentInteraction.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-                            notSentInteraction.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                            putToDataToSend("interactions", notSentInteraction);
+                    Optional<String> guildLocale = event.getInteraction().getGuildLocale();
+                    String guildLocaleString = guildLocale.orElse(null);
+                    if (guildLocaleString != null) {
+                        boolean isGLTracked = false;
+                        for (int i = 0; i < guildsLocales.size(); i++) {
+                            LocalesItems item = parseStringToLocalesItems(guildsLocales.get(i));
+                            if (item.locale.equals(guildLocaleString)) {
+                                item.number++;
+                                guildsLocales.set(i, item.toString());
+                                isGLTracked = true;
+                                break;
+                            }
                         }
-
-                        if (response.statusCode() == 200 && notSentInteraction.size() > 0) sendDataToSend();
-
-                        return Mono.empty();
-                    } catch (IOException | InterruptedException e) {
-                        throw new RuntimeException(e);
+                        if (!isGLTracked) guildsLocales.add(new LocalesItems(guildLocaleString, 1).toString());
                     }
+
+                    String userLocaleString = event.getInteraction().getUserLocale();
+                    boolean isULTracked = false;
+                    for (int i = 0; i < locales.size(); i++) {
+                        LocalesItems item = parseStringToLocalesItems(locales.get(i));
+                        if (item.locale.equals(userLocaleString)) {
+                            item.number++;
+                            locales.set(i, item.toString());
+                            isULTracked = true;
+                            break;
+                        }
+                    }
+                    if (!isULTracked) locales.add(new LocalesItems(userLocaleString, 1).toString());
+
+                    Interaction interaction = event.getInteraction();
+                    int interactionType = interaction.getType().getValue();
+                    String interactionName = interaction.getCommandInteraction().isPresent()
+                            ? (interaction.getCommandInteraction().get().getName().isPresent()
+                                ? interaction.getCommandInteraction().get().getName().get()
+                                : null)
+                            : null;
+
+                    if (interactionName == null) {
+                        return Mono.empty();
+                    }
+
+                    boolean isITracked = false;
+                    for (int i = 0; i < interactions.size(); i++) {
+                        InteractionItem item = parseStringToInteractionItem(interactions.get(i));
+                        if (item.name.equals(interactionName)) {
+                            item.number++;
+                            interactions.set(i, item.toString());
+                            isITracked = true;
+                            break;
+                        }
+                    }
+                    if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
+
+                    setData(new HashMap<>() {{
+                        put("date", dateString);
+                        put("guilds", guildCount);
+                        put("users", userCount);
+                        put("interactions", interactions);
+                        put("locales", locales);
+                        put("guildsLocales", guildsLocales);
+                    }});
+
+                    return Mono.empty();
                 });
             }
-            if (eventsToTrack.trackGuilds) {
-                gateway.on(GuildCreateEvent.class, event -> trackGuilds());
-                gateway.on(GuildDeleteEvent.class, event -> trackGuilds());
-            }
-
-            precedentPostDate = new Date();
 
             return Mono.empty();
         });
+
+        new Thread(() -> {
+            while (true) {
+                try {
+                    postStats();
+                    Thread.sleep(60000);
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
-    private Mono<Object> trackGuilds() {
-        if (isOnCooldown()) return Mono.empty();
+    public void postStats() throws IOException, InterruptedException {
+        Number guildCount = eventsToTrack.trackGuilds ? client.getGuilds().count().block() : null;
+        Number userCount = eventsToTrack.trackUserCount ? client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block() : null;
 
-        // String[] date = new Date().toString().split(" ");
-        // Flux<UserGuildData> clientGuilds = client.getGuilds();
-        // Mono<Long> userCount = clientGuilds.flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum);
+        HashMap<String, Object> data = super.getData();
 
-        // HttpResponse<String> response = post(ApiEndpoints.ROUTES.GUILDS, new HashMap<>() {{
-        //     put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-        //     put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-        //     put("userCount", eventsToTrack.trackUserCount ? userCount : null);
-        // }}.toString());
+        if (
+                data.get("guilds") == guildCount
+                && data.get("users") == userCount
+                && ((ArrayList<String>) data.get("interactions")).size() == 0
+                && ((ArrayList<String>) data.get("locales")).size() == 0
+                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
+        ) return;
 
-        // HashMap<Object, Object> notSentGuild = (HashMap<Object, Object>) getDataToSend().get("guilds");
-        // if (response.statusCode() != 200) {
-        //     if (notSentGuild.size() == 0) new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-        //     notSentGuild.put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-        //     notSentGuild.put("guildCount", eventsToTrack.trackGuilds ? clientGuilds.count() : null);
-        //     notSentGuild.put("userCount", eventsToTrack.trackUserCount ? userCount : null);
+        HttpResponse<String> response = super.post(new ObjectMapper()
+                .writeValueAsString(data));
 
-        //     putToDataToSend("guilds", notSentGuild);
-        // }
+        if (response.statusCode() == 401) {
+            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 429) {
+            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+            return;
+        }
+        if (response.statusCode() == 423) {
+            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+            return;
+        }
+        if (response.statusCode() != 200) {
+            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+            return;
+        }
 
-        // if (response.statusCode() == 200 && notSentGuild.size() > 0) sendDataToSend();
-
-        return Mono.empty();
+        if (response.statusCode() == 200) {
+            String[] date = new Date().toString().split(" ");
+            super.setData(new HashMap<>() {{
+                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+                put("guilds", guildCount);
+                put("users", userCount);
+                put("interactions", new ArrayList<>());
+                put("locales", new ArrayList<>());
+                put("guildsLocales", new ArrayList<>());
+            }});
+        }
     }
 }

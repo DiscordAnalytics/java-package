@@ -82,6 +82,8 @@ public class InteractionTrackerListener extends ListenerAdapter {
                                         ? ((ModalInteraction) interaction).getModalId()
                                             : null;
 
+            if (interactionName == null) return;
+
             boolean isITracked = false;
             for (int i = 0; i < interactions.size(); i++) {
                 InteractionItem item = analytics.parseStringToInteractionItem(interactions.get(i));

@@ -18,7 +18,6 @@ public class AnalyticsBase {
     protected final String apiKey;
     protected final HttpClient httpClient;
     protected HashMap<String, Object> dataToSend;
-    protected Date precedentPostDate;
     protected String baseAPIUrl;
 
     public AnalyticsBase(EventsTracker eventsToTrack, String apiKey) {
@@ -91,9 +90,6 @@ public class AnalyticsBase {
 
         return response.statusCode() != 200;
     }
-    protected boolean isOnCooldown() {
-        return new Date().getTime() - precedentPostDate.getTime() < 60000;
-    }
 
     public EventsTracker getEventsToTrack() {
         return eventsToTrack;
@@ -121,22 +117,6 @@ public class AnalyticsBase {
     }
     public void setData(HashMap<String, Object> data) {
         dataToSend = data;
-    }
-
-    public void putToDataToSend(String key, Object value) {
-        dataToSend.put(key, value);
-    }
-    public void sendDataToSend() {
-        try {
-            post(new ObjectMapper().writeValueAsString(dataToSend));
-            dataToSend.put("guilds", 0);
-            dataToSend.put("users", 0);
-            dataToSend.put("interactions", new ArrayList<>());
-            dataToSend.put("locales", new ArrayList<>());
-            dataToSend.put("guildsLocales", new ArrayList<>());
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     public static String monthToNumber(String month) {

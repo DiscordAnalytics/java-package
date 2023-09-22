@@ -107,6 +107,8 @@ public class JavacordAnalytics extends AnalyticsBase {
                                                 ? ((ModalInteraction) interaction).getCustomId()
                                                     : null;
 
+                    if (interactionName == null) return;
+
                     boolean isITracked = false;
                     for (int i = 0; i < interactions.size(); i++) {
                         InteractionItem item = parseStringToInteractionItem(interactions.get(i));
