@@ -19,8 +19,11 @@ public class JavacordAnalytics extends AnalyticsBase {
         super(eventsToTrack, apiKey);
         this.client = api;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getYourself().getIdAsString());
+
+        String[] date = new Date().toString().split(" ");
+
         this.setData(new HashMap<>() {{
-            put("date", new Date().toString());
+            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
             put("guilds", client.getServers().size());
             put("users", client.getCachedUsers().size());
             put("interactions", new ArrayList<>());
@@ -126,8 +129,8 @@ public class JavacordAnalytics extends AnalyticsBase {
                         put("guilds", guildCount);
                         put("users", userCount);
                         put("interactions", interactions);
-                        put("locales", locales);
-                        put("guildsLocales", guildsLocales);
+                        put("locales", eventsToTrack.trackUserLanguage ? locales : new ArrayList<>());
+                        put("guildsLocales", eventsToTrack.trackGuildsLocale ? guildsLocales : new ArrayList<>());
                     }});
                 } catch (Exception e) {
                     e.printStackTrace();

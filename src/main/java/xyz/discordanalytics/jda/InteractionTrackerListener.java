@@ -101,8 +101,8 @@ public class InteractionTrackerListener extends ListenerAdapter {
                 put("guilds", guildCount);
                 put("users", userCount);
                 put("interactions", interactions);
-                put("locales", locales);
-                put("guildsLocales", guildsLocales);
+                put("locales", analytics.getEventsToTrack().trackUserLanguage ? locales : new ArrayList<>());
+                put("guildsLocales", analytics.getEventsToTrack().trackGuildsLocale ? guildsLocales : new ArrayList<>());
             }});
         } catch (Exception e) {
             e.printStackTrace();

@@ -22,8 +22,11 @@ public class JDAAnalytics extends AnalyticsBase {
         super(eventsToTrack, apiKey);
         this.client = jda;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getSelfUser().getId());
+
+        String[] date = new Date().toString().split(" ");
+
         this.setData(new HashMap<>() {{
-            put("date", new Date().toString());
+            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
             put("guilds", client.getGuilds().size());
             put("users", client.getUsers().size());
             put("interactions", new ArrayList<>());

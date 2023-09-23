@@ -17,34 +17,21 @@ import java.util.*;
 public class D4JAnalytics extends AnalyticsBase {
     private final DiscordClient client;
 
-    private Number guildCount;
-    private Number userCount;
-    private ArrayList<String> guildsLocales;
-    private ArrayList<String> locales;
-    private ArrayList<String> interactions;
-
     public D4JAnalytics(DiscordClient client, EventsTracker eventsToTrack, String apiKey) {
         super(eventsToTrack, apiKey);
         this.client = client;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", Objects.requireNonNull(Objects.requireNonNull(client.getSelf().block()).id().asString()));
 
         String[] date = new Date().toString().split(" ");
-        String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
 
         this.setData(new HashMap<>() {{
-            put("date", dateString);
+            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
             put("guilds", client.getGuilds().count().block());
             put("users", client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block());
             put("interactions", new ArrayList<>());
             put("locales", new ArrayList<>());
             put("guildsLocales", new ArrayList<>());
         }});
-
-        this.guildCount = (Number) getData().get("guilds");
-        this.userCount = (Number) getData().get("users");
-        this.guildsLocales = (ArrayList<String>) getData().get("guildsLocales");
-        this.locales = (ArrayList<String>) getData().get("locales");
-        this.interactions = (ArrayList<String>) getData().get("interactions");
     }
 
     private boolean isInvalidClient() {
@@ -73,6 +60,12 @@ public class D4JAnalytics extends AnalyticsBase {
         client.withGateway((GatewayDiscordClient gateway) -> {
             if (eventsToTrack.trackInteractions) {
                 gateway.on(InteractionCreateEvent.class, event -> {
+                    Number guildCount = eventsToTrack.trackGuilds ? client.getGuilds().count().block() : null;
+                    Number userCount = eventsToTrack.trackUserCount ? client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block() : null;
+                    ArrayList<String> guildsLocales = (ArrayList<String>) getData().get("guildsLocales");
+                    ArrayList<String> locales = (ArrayList<String>) getData().get("locales");
+                    ArrayList<String> interactions = (ArrayList<String>) getData().get("interactions");
+
                     String[] date = new Date().toString().split(" ");
                     String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
 
@@ -134,8 +127,8 @@ public class D4JAnalytics extends AnalyticsBase {
                         put("guilds", guildCount);
                         put("users", userCount);
                         put("interactions", interactions);
-                        put("locales", locales);
-                        put("guildsLocales", guildsLocales);
+                        put("locales", eventsToTrack.trackUserLanguage ? locales : new ArrayList<>());
+                        put("guildsLocales", eventsToTrack.trackGuildsLocale ? guildsLocales : new ArrayList<>());
                     }});
 
                     return Mono.empty();
