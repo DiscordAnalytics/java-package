@@ -30,8 +30,8 @@ public class InteractionTrackerListener extends ListenerAdapter {
     @Override
     public void onGenericInteractionCreate(@NotNull GenericInteractionCreateEvent event) {
         try {
-            Number guildCount = analytics.getEventsToTrack().trackGuilds ? client.getGuilds().size() : null;
-            Number userCount = analytics.getEventsToTrack().trackUserCount ? client.getUsers().size() : null;
+            Number guildCount = client.getGuilds().size();
+            Number userCount = client.getUsers().size();
             ArrayList<String> guildsLocales = (ArrayList<String>) analytics.getData().get("guildsLocales");
             ArrayList<String> locales = (ArrayList<String>) analytics.getData().get("locales");
             ArrayList<String> interactions = (ArrayList<String>) analytics.getData().get("interactions");
@@ -101,8 +101,8 @@ public class InteractionTrackerListener extends ListenerAdapter {
                 put("guilds", guildCount);
                 put("users", userCount);
                 put("interactions", interactions);
-                put("locales", analytics.getEventsToTrack().trackUserLanguage ? locales : new ArrayList<>());
-                put("guildsLocales", analytics.getEventsToTrack().trackGuildsLocale ? guildsLocales : new ArrayList<>());
+                put("locales", locales);
+                put("guildsLocales", guildsLocales);
             }});
         } catch (Exception e) {
             e.printStackTrace();

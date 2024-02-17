@@ -15,8 +15,8 @@ import java.util.HashMap;
 public class JavacordAnalytics extends AnalyticsBase {
     private final DiscordApi client;
 
-    public JavacordAnalytics(DiscordApi api, EventsTracker eventsToTrack, String apiKey) {
-        super(eventsToTrack, apiKey);
+    public JavacordAnalytics(DiscordApi api, String apiKey) {
+        super(apiKey);
         this.client = api;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getYourself().getIdAsString());
 
@@ -55,94 +55,92 @@ public class JavacordAnalytics extends AnalyticsBase {
             return;
         }
 
-        if (eventsToTrack.trackInteractions) {
-            client.addInteractionCreateListener(listener -> {
-                try {
-                    Number guildCount = eventsToTrack.trackGuilds ? client.getServers().size() : null;
-                    Number userCount = eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null;
-                    ArrayList<String> guildsLocales = (ArrayList<String>) getData().get("guildsLocales");
-                    ArrayList<String> locales = (ArrayList<String>) getData().get("locales");
-                    ArrayList<String> interactions = (ArrayList<String>) getData().get("interactions");
+        client.addInteractionCreateListener(listener -> {
+            try {
+                Number guildCount = client.getServers().size();
+                Number userCount = client.getCachedUsers().size();
+                ArrayList<String> guildsLocales = (ArrayList<String>) getData().get("guildsLocales");
+                ArrayList<String> locales = (ArrayList<String>) getData().get("locales");
+                ArrayList<String> interactions = (ArrayList<String>) getData().get("interactions");
 
-                    String[] date = new Date().toString().split(" ");
-                    String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
+                String[] date = new Date().toString().split(" ");
+                String dateString = date[5] + "-" + monthToNumber(date[1]) + "-" + date[2];
 
-                    DiscordLocale guildLocale = listener.getInteraction().getServerLocale().isPresent() ? listener.getInteraction().getServerLocale().get() : null;
-                    String guildLocaleString = guildLocale != null ? listener.getInteraction().getServerLocale().get().getLocaleCode() : null;
-                    if (guildLocaleString != null) {
-                        boolean isGLTracked = false;
-                        for (int i = 0; i < guildsLocales.size(); i++) {
-                            LocalesItems item = parseStringToLocalesItems(guildsLocales.get(i));
-                            if (item.locale.equals(guildLocaleString)) {
-                                item.number++;
-                                guildsLocales.set(i, item.toString());
-                                isGLTracked = true;
-                                break;
-                            }
-                        }
-                        if (!isGLTracked) guildsLocales.add(new LocalesItems(guildLocaleString, 1).toString());
-                    }
-
-                    DiscordLocale userLocale = listener.getInteraction().getLocale();
-                    String userLocaleString = userLocale.getLocaleCode();
-                    boolean isULTracked = false;
-                    for (int i = 0; i < locales.size(); i++) {
-                        LocalesItems item = parseStringToLocalesItems(locales.get(i));
-                        if (item.locale.equals(userLocaleString)) {
+                DiscordLocale guildLocale = listener.getInteraction().getServerLocale().isPresent() ? listener.getInteraction().getServerLocale().get() : null;
+                String guildLocaleString = guildLocale != null ? listener.getInteraction().getServerLocale().get().getLocaleCode() : null;
+                if (guildLocaleString != null) {
+                    boolean isGLTracked = false;
+                    for (int i = 0; i < guildsLocales.size(); i++) {
+                        LocalesItems item = parseStringToLocalesItems(guildsLocales.get(i));
+                        if (item.locale.equals(guildLocaleString)) {
                             item.number++;
-                            locales.set(i, item.toString());
-                            isULTracked = true;
+                            guildsLocales.set(i, item.toString());
+                            isGLTracked = true;
                             break;
                         }
                     }
-                    if (!isULTracked) locales.add(new LocalesItems(userLocaleString, 1).toString());
-
-                    Interaction interaction = listener.getInteraction();
-                    int interactionType = interaction.getType().getValue();
-                    String interactionName =
-                            interactionType == InteractionType.APPLICATION_COMMAND.getValue()
-                                    ? ((ApplicationCommandInteraction) interaction).getCommandName()
-                                        : interactionType == InteractionType.MESSAGE_COMPONENT.getValue()
-                                        ? ((MessageComponentInteraction) interaction).getCustomId()
-                                            : interactionType == InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE.getValue()
-                                            ? ((AutocompleteInteraction) interaction).getCommandName()
-                                                : interactionType == InteractionType.MODAL_SUBMIT.getValue()
-                                                ? ((ModalInteraction) interaction).getCustomId()
-                                                    : null;
-
-                    if (interactionName == null) return;
-
-                    boolean isITracked = false;
-                    for (int i = 0; i < interactions.size(); i++) {
-                        InteractionItem item = parseStringToInteractionItem(interactions.get(i));
-                        if (item.name.equals(interactionName)) {
-                            item.number++;
-                            interactions.set(i, item.toString());
-                            isITracked = true;
-                            break;
-                        }
-                    }
-                    if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
-
-                    setData(new HashMap<>() {{
-                        put("date", dateString);
-                        put("guilds", guildCount);
-                        put("users", userCount);
-                        put("interactions", interactions);
-                        put("locales", eventsToTrack.trackUserLanguage ? locales : new ArrayList<>());
-                        put("guildsLocales", eventsToTrack.trackGuildsLocale ? guildsLocales : new ArrayList<>());
-                    }});
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    if (!isGLTracked) guildsLocales.add(new LocalesItems(guildLocaleString, 1).toString());
                 }
-            });
-        }
+
+                DiscordLocale userLocale = listener.getInteraction().getLocale();
+                String userLocaleString = userLocale.getLocaleCode();
+                boolean isULTracked = false;
+                for (int i = 0; i < locales.size(); i++) {
+                    LocalesItems item = parseStringToLocalesItems(locales.get(i));
+                    if (item.locale.equals(userLocaleString)) {
+                        item.number++;
+                        locales.set(i, item.toString());
+                        isULTracked = true;
+                        break;
+                    }
+                }
+                if (!isULTracked) locales.add(new LocalesItems(userLocaleString, 1).toString());
+
+                Interaction interaction = listener.getInteraction();
+                int interactionType = interaction.getType().getValue();
+                String interactionName =
+                        interactionType == InteractionType.APPLICATION_COMMAND.getValue()
+                                ? ((ApplicationCommandInteraction) interaction).getCommandName()
+                                    : interactionType == InteractionType.MESSAGE_COMPONENT.getValue()
+                                    ? ((MessageComponentInteraction) interaction).getCustomId()
+                                        : interactionType == InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE.getValue()
+                                        ? ((AutocompleteInteraction) interaction).getCommandName()
+                                            : interactionType == InteractionType.MODAL_SUBMIT.getValue()
+                                            ? ((ModalInteraction) interaction).getCustomId()
+                                                : null;
+
+                if (interactionName == null) return;
+
+                boolean isITracked = false;
+                for (int i = 0; i < interactions.size(); i++) {
+                    InteractionItem item = parseStringToInteractionItem(interactions.get(i));
+                    if (item.name.equals(interactionName)) {
+                        item.number++;
+                        interactions.set(i, item.toString());
+                        isITracked = true;
+                        break;
+                    }
+                }
+                if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
+
+                setData(new HashMap<>() {{
+                    put("date", dateString);
+                    put("guilds", guildCount);
+                    put("users", userCount);
+                    put("interactions", interactions);
+                    put("locales", locales);
+                    put("guildsLocales", guildsLocales);
+                }});
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
 
         new Thread(() -> {
             while (true) {
                 try {
                     postStats();
-                    Thread.sleep(60000*5);
+                    Thread.sleep(5*60000);
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -151,8 +149,8 @@ public class JavacordAnalytics extends AnalyticsBase {
     }
 
     public void postStats() throws IOException, InterruptedException {
-        Number guildCount = eventsToTrack.trackGuilds ? client.getServers().size() : null;
-        Number userCount = eventsToTrack.trackUserCount ? client.getCachedUsers().size() : null;
+        Number guildCount = client.getServers().size();
+        Number userCount = client.getCachedUsers().size();
 
         HashMap<String, Object> data = super.getData();
 

@@ -2,7 +2,7 @@
 
 ## Compatibility
 
-The package is compatible with Discord4J version 3.2.4 or higher,
+The package is compatible with Discord4J version 3.2.6 or higher,
 Javacord version 3.8.0 or higher,
 and JDA version 5.0.0-beta.8 or higher.
 
@@ -45,7 +45,6 @@ import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.lifecycle.ReadyEvent;
 import discord4j.core.object.entity.User;
 import xyz.discordanalytics.D4JAnalytics;
-import xyz.discordanalytics.utilities.EventsTracker;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -61,19 +60,11 @@ public class ExampleWithD4J {
             gateway.on(ReadyEvent.class, event ->
                 Mono.fromRunnable(() -> {
                     final User self = event.getSelf();
-                    System.out.printf("Logged in as %s#%s%n", self.getUsername(), self.getDiscriminator());
-
-                    // Initialize what you want to track
-                    EventsTracker eventsTracker = new EventsTracker();
-                    eventsTracker.trackInteractions = true;
-                    eventsTracker.trackGuilds = true;
-                    eventsTracker.trackUserCount = true;
-                    eventsTracker.trackUserLanguage = true;
-                    eventsTracker.trackGuildsLocale = true;
+                    System.out.printf("Logged in as %s%n", self.getUsername());
 
                     // Initialize the DiscordAnalytics class
                     // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-                    D4JAnalytics analytics = new D4JAnalytics(client, eventsTracker, "YOUR_API_KEY");
+                    D4JAnalytics analytics = new D4JAnalytics(client, "YOUR_API_KEY");
                     // Start the tracking, it will be done every 10 minutes to avoid spamming the API
                     try {
                         analytics.trackEvents();
@@ -95,7 +86,6 @@ public class ExampleWithD4J {
 package example;
 
 import xyz.discordanalytics.JavacordAnalytics;
-import xyz.discordanalytics.utilities.EventsTracker;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.intent.Intent;
@@ -111,17 +101,9 @@ public class ExampleWithJavacord {
                 .addIntents(Intent.MESSAGE_CONTENT)
                 .login().join();
 
-        // Initialize what you want to track
-        EventsTracker eventsTracker = new EventsTracker();
-        eventsTracker.trackInteractions = true;
-        eventsTracker.trackGuilds = true;
-        eventsTracker.trackUserCount = true;
-        eventsTracker.trackUserLanguage = true;
-        eventsTracker.trackGuildsLocale = true;
-
         // Initialize the DiscordAnalytics class
         // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-        JavacordAnalytics analytics = new JavacordAnalytics(api, eventsTracker, "YOUR_API_KEY");
+        JavacordAnalytics analytics = new JavacordAnalytics(api, "YOUR_API_KEY");
         // Start the tracking, it will be done every 10 minutes to avoid spamming the API
         try {
             analytics.trackEvents();
@@ -161,7 +143,6 @@ package example.jda;
 import discord4j.core.event.domain.lifecycle.ReadyEvent;
 import discord4j.core.object.entity.User;
 import xyz.discordanalytics.JDAAnalytics;
-import xyz.discordanalytics.utilities.EventsTracker;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.jetbrains.annotations.NotNull;
@@ -173,19 +154,11 @@ public class ReadyListener implements EventListener {
     public void onEvent(@NotNull GenericEvent genericEvent) {
         if (genericEvent instanceof ReadyEvent) {
             final User self = ((ReadyEvent) genericEvent).getSelf();
-            System.out.printf("Logged in as %s#%s%n", self.getUsername(), self.getDiscriminator());
-
-            // Initialize what you want to track
-            EventsTracker eventsTracker = new EventsTracker();
-            eventsTracker.trackInteractions = true;
-            eventsTracker.trackGuilds = true;
-            eventsTracker.trackUserCount = true;
-            eventsTracker.trackUserLanguage = true;
-            eventsTracker.trackGuildsLocale = true;
+            System.out.printf("Logged in as %s%n", self.getUsername());
 
             // Initialize the DiscordAnalytics class
             // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-            JDAAnalytics analytics = new JDAAnalytics(genericEvent.getJDA(), eventsTracker, "YOUR_API_KEY");
+            JDAAnalytics analytics = new JDAAnalytics(genericEvent.getJDA(), "YOUR_API_KEY");
             // Start the tracking, it will be done every 10 minutes to avoid spamming the API
             try {
                 analytics.trackEvents();

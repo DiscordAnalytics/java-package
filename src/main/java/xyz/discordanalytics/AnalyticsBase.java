@@ -14,14 +14,12 @@ import java.util.Date;
 import java.util.HashMap;
 
 public class AnalyticsBase {
-    protected final EventsTracker eventsToTrack;
     protected final String apiKey;
     protected final HttpClient httpClient;
     protected HashMap<String, Object> dataToSend;
     protected String baseAPIUrl;
 
-    public AnalyticsBase(EventsTracker eventsToTrack, String apiKey) {
-        this.eventsToTrack = eventsToTrack;
+    public AnalyticsBase(String apiKey) {
         this.apiKey = apiKey;
         this.httpClient = HttpClient.newHttpClient();
 
@@ -53,14 +51,8 @@ public class AnalyticsBase {
 
     protected boolean isConfigInvalid(String username, String avatar, String id, String libType) throws IOException, InterruptedException {
         HashMap<String, Object> data = new HashMap<>() {{
-            put("settings", new HashMap<>() {{
-                put("trackGuilds", eventsToTrack.trackGuilds);
-                put("trackGuildsLocale", eventsToTrack.trackGuildsLocale);
-                put("trackInteractions", eventsToTrack.trackInteractions);
-                put("trackUserCount", eventsToTrack.trackUserCount);
-                put("trackUserLanguage", eventsToTrack.trackUserLanguage);
-            }});
             put("framework", libType);
+            put("version", AnalyticsBase.class.getPackage().getImplementationVersion());
             put("username", username);
             put("avatar", avatar);
         }};
@@ -89,10 +81,6 @@ public class AnalyticsBase {
         }
 
         return response.statusCode() != 200;
-    }
-
-    public EventsTracker getEventsToTrack() {
-        return eventsToTrack;
     }
 
     public HttpResponse<String> post(String data) throws IOException, InterruptedException {

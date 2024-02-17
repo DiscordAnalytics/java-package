@@ -6,7 +6,6 @@ import net.dv8tion.jda.api.entities.SelfUser;
 import xyz.discordanalytics.jda.InteractionTrackerListener;
 import xyz.discordanalytics.utilities.ApiEndpoints;
 import xyz.discordanalytics.utilities.ErrorCodes;
-import xyz.discordanalytics.utilities.EventsTracker;
 import xyz.discordanalytics.utilities.LibType;
 
 import java.io.IOException;
@@ -18,8 +17,8 @@ import java.util.HashMap;
 public class JDAAnalytics extends AnalyticsBase {
     private final JDA client;
 
-    public JDAAnalytics(JDA jda, EventsTracker eventsToTrack, String apiKey) {
-        super(eventsToTrack, apiKey);
+    public JDAAnalytics(JDA jda, String apiKey) {
+        super(apiKey);
         this.client = jda;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getSelfUser().getId());
 
@@ -56,13 +55,13 @@ public class JDAAnalytics extends AnalyticsBase {
             return;
         }
 
-        if (eventsToTrack.trackInteractions) client.addEventListener(new InteractionTrackerListener(this));
+        client.addEventListener(new InteractionTrackerListener(this));
 
         new Thread(() -> {
             while (true) {
                 try {
                     postStats();
-                    Thread.sleep(60000*5);
+                    Thread.sleep(5*60000);
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -71,8 +70,8 @@ public class JDAAnalytics extends AnalyticsBase {
     }
 
     public void postStats() throws IOException, InterruptedException {
-        Number guildCount = eventsToTrack.trackGuilds ? client.getGuilds().size() : null;
-        Number userCount = eventsToTrack.trackUserCount ? client.getUsers().size() : null;
+        Number guildCount = client.getGuilds().size();
+        Number userCount = client.getUsers().size();
 
         HashMap<String, Object> data = super.getData();
 

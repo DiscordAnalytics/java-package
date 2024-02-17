@@ -7,7 +7,7 @@
     <groupId>xyz.discordanalytics</groupId>
     <artifactId>discord-analytics</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.3</version>
+    <version>0.0.4-beta.1</version>
 
     <name>Discord Analytics</name>
     <description>The Discord Analytics package for java discord frameworks</description>
@@ -31,7 +31,7 @@
         <dependency>
             <groupId>com.discord4j</groupId>
             <artifactId>discord4j-core</artifactId>
-            <version>3.2.4</version>
+            <version>3.2.6</version>
         </dependency>
         <dependency>
             <groupId>org.javacord</groupId>
