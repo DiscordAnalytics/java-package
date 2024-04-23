@@ -96,14 +96,14 @@ public class InteractionTrackerListener extends ListenerAdapter {
             }
             if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
 
-            analytics.setData(new HashMap<>() {{
-                put("date", dateString);
-                put("guilds", guildCount);
-                put("users", userCount);
-                put("interactions", interactions);
-                put("locales", locales);
-                put("guildsLocales", guildsLocales);
-            }});
+//            analytics.setData(new HashMap<>() {{
+//                put("date", dateString);
+//                put("guilds", guildCount);
+//                put("users", userCount);
+//                put("interactions", interactions);
+//                put("locales", locales);
+//                put("guildsLocales", guildsLocales);
+//            }});
         } catch (Exception e) {
             e.printStackTrace();
         }

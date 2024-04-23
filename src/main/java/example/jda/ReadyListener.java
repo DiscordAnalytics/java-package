@@ -18,7 +18,7 @@ public class ReadyListener implements EventListener {
 
             // Initialize the DiscordAnalytics class
             // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-            JDAAnalytics analytics = new JDAAnalytics(genericEvent.getJDA(), "YOUR_API_KEY");
+            JDAAnalytics analytics = new JDAAnalytics(genericEvent.getJDA(), "YOUR_API_KEY", true);
             // Start the tracking, it will be done every 10 minutes to avoid spamming the API
             try {
                 analytics.trackEvents();

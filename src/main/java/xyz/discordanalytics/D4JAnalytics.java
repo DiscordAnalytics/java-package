@@ -17,21 +17,21 @@ import java.util.*;
 public class D4JAnalytics extends AnalyticsBase {
     private final DiscordClient client;
 
-    public D4JAnalytics(DiscordClient client, String apiKey) {
-        super(apiKey);
+    public D4JAnalytics(DiscordClient client, String apiKey, Boolean debug) {
+        super(apiKey, debug);
         this.client = client;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", Objects.requireNonNull(Objects.requireNonNull(client.getSelf().block()).id().asString()));
 
         String[] date = new Date().toString().split(" ");
 
-        this.setData(new HashMap<>() {{
-            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-            put("guilds", client.getGuilds().count().block());
-            put("users", client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block());
-            put("interactions", new ArrayList<>());
-            put("locales", new ArrayList<>());
-            put("guildsLocales", new ArrayList<>());
-        }});
+//        this.setData(new HashMap<>() {{
+//            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+//            put("guilds", client.getGuilds().count().block());
+//            put("users", client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block());
+//            put("interactions", new ArrayList<>());
+//            put("locales", new ArrayList<>());
+//            put("guildsLocales", new ArrayList<>());
+//        }});
     }
 
     private boolean isInvalidClient() {
@@ -113,14 +113,14 @@ public class D4JAnalytics extends AnalyticsBase {
                 }
                 if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
 
-                setData(new HashMap<>() {{
-                    put("date", dateString);
-                    put("guilds", guildCount);
-                    put("users", userCount);
-                    put("interactions", interactions);
-                    put("locales", locales);
-                    put("guildsLocales", guildsLocales);
-                }});
+//                setData(new HashMap<>() {{
+//                    put("date", dateString);
+//                    put("guilds", guildCount);
+//                    put("users", userCount);
+//                    put("interactions", interactions);
+//                    put("locales", locales);
+//                    put("guildsLocales", guildsLocales);
+//                }});
 
                 return Mono.empty();
             });
@@ -180,14 +180,14 @@ public class D4JAnalytics extends AnalyticsBase {
                 }
                 if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
 
-                setData(new HashMap<>() {{
-                    put("date", dateString);
-                    put("guilds", guildCount);
-                    put("users", userCount);
-                    put("interactions", interactions);
-                    put("locales", locales);
-                    put("guildsLocales", guildsLocales);
-                }});
+//                setData(new HashMap<>() {{
+//                    put("date", dateString);
+//                    put("guilds", guildCount);
+//                    put("users", userCount);
+//                    put("interactions", interactions);
+//                    put("locales", locales);
+//                    put("guildsLocales", guildsLocales);
+//                }});
 
                 return Mono.empty();
             });
@@ -247,14 +247,14 @@ public class D4JAnalytics extends AnalyticsBase {
                 }
                 if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
 
-                setData(new HashMap<>() {{
-                    put("date", dateString);
-                    put("guilds", guildCount);
-                    put("users", userCount);
-                    put("interactions", interactions);
-                    put("locales", locales);
-                    put("guildsLocales", guildsLocales);
-                }});
+//                setData(new HashMap<>() {{
+//                    put("date", dateString);
+//                    put("guilds", guildCount);
+//                    put("users", userCount);
+//                    put("interactions", interactions);
+//                    put("locales", locales);
+//                    put("guildsLocales", guildsLocales);
+//                }});
 
                 return Mono.empty();
             });
@@ -314,14 +314,14 @@ public class D4JAnalytics extends AnalyticsBase {
                 }
                 if (!isITracked) interactions.add(new InteractionItem(interactionName, interactionType, 1).toString());
 
-                setData(new HashMap<>() {{
-                    put("date", dateString);
-                    put("guilds", guildCount);
-                    put("users", userCount);
-                    put("interactions", interactions);
-                    put("locales", locales);
-                    put("guildsLocales", guildsLocales);
-                }});
+//                setData(new HashMap<>() {{
+//                    put("date", dateString);
+//                    put("guilds", guildCount);
+//                    put("users", userCount);
+//                    put("interactions", interactions);
+//                    put("locales", locales);
+//                    put("guildsLocales", guildsLocales);
+//                }});
 
                 return Mono.empty();
             });
@@ -345,46 +345,46 @@ public class D4JAnalytics extends AnalyticsBase {
         Number guildCount = client.getGuilds().count().block();
         Number userCount = client.getGuilds().flatMap(guild -> client.getGuildById(Snowflake.of(guild.id())).getMembers().count()).reduce(0L, Long::sum).block();
 
-        HashMap<String, Object> data = super.getData();
+//        HashMap<String, Object> data = super.getData();
 
-        if (
-                data.get("guilds") == guildCount
-                && data.get("users") == userCount
-                && ((ArrayList<String>) data.get("interactions")).size() == 0
-                && ((ArrayList<String>) data.get("locales")).size() == 0
-                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
-        ) return;
-
-        HttpResponse<String> response = super.post(new ObjectMapper()
-                .writeValueAsString(data));
-
-        if (response.statusCode() == 401) {
-            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
-            return;
-        }
-        if (response.statusCode() == 429) {
-            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return;
-        }
-        if (response.statusCode() == 423) {
-            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
-            return;
-        }
-        if (response.statusCode() != 200) {
-            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-            return;
-        }
-
-        if (response.statusCode() == 200) {
-            String[] date = new Date().toString().split(" ");
-            super.setData(new HashMap<>() {{
-                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                put("guilds", guildCount);
-                put("users", userCount);
-                put("interactions", new ArrayList<>());
-                put("locales", new ArrayList<>());
-                put("guildsLocales", new ArrayList<>());
-            }});
-        }
+//        if (
+//                data.get("guilds") == guildCount
+//                && data.get("users") == userCount
+//                && ((ArrayList<String>) data.get("interactions")).size() == 0
+//                && ((ArrayList<String>) data.get("locales")).size() == 0
+//                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
+//        ) return;
+//
+//        HttpResponse<String> response = super.post(new ObjectMapper()
+//                .writeValueAsString(data));
+//
+//        if (response.statusCode() == 401) {
+//            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+//            return;
+//        }
+//        if (response.statusCode() == 429) {
+//            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+//            return;
+//        }
+//        if (response.statusCode() == 423) {
+//            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+//            return;
+//        }
+//        if (response.statusCode() != 200) {
+//            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+//            return;
+//        }
+//
+//        if (response.statusCode() == 200) {
+//            String[] date = new Date().toString().split(" ");
+//            super.setData(new HashMap<>() {{
+//                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+//                put("guilds", guildCount);
+//                put("users", userCount);
+//                put("interactions", new ArrayList<>());
+//                put("locales", new ArrayList<>());
+//                put("guildsLocales", new ArrayList<>());
+//            }});
+//        }
     }
 }

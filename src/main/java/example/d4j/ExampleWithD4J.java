@@ -24,7 +24,7 @@ public class ExampleWithD4J {
 
                     // Initialize the DiscordAnalytics class
                     // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-                    D4JAnalytics analytics = new D4JAnalytics(client, "YOUR_API_KEY");
+                    D4JAnalytics analytics = new D4JAnalytics(client, "YOUR_API_KEY", true);
                     // Start the tracking, it will be done every 10 minutes to avoid spamming the API
                     try {
                         analytics.trackEvents();

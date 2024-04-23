@@ -12,13 +12,13 @@ public class ExampleWithJavacord {
         // Create a Discord client
         // Don't forget to replace YOUR_BOT_TOKEN by your Discord bot token !
         DiscordApi api = new DiscordApiBuilder()
-                .setToken("YOUR_BOT_TOKEN")
+                .setToken("ODY4MTU2MTAzOTA3NzM3NjAw.GgPfxY.NylCDLl1ZD8r5xHKxd0oIIKZrE2UtB3bl83xjU")
                 .addIntents(Intent.MESSAGE_CONTENT)
                 .login().join();
 
         // Initialize the DiscordAnalytics class
         // Don't forget to replace YOUR_API_TOKEN by your Discord Analytics token !
-        JavacordAnalytics analytics = new JavacordAnalytics(api, "YOUR_API_KEY");
+        JavacordAnalytics analytics = new JavacordAnalytics(api, "5a20a9b18329a9129a6bcc0076a96bcb98e00909a364d518", true);
         // Start the tracking, it will be done every 10 minutes to avoid spamming the API
         try {
             analytics.trackEvents();

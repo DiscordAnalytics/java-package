@@ -1,6 +1,6 @@
 package xyz.discordanalytics;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.json.JSONObject;
 import xyz.discordanalytics.utilities.*;
 
 import java.io.IOException;
@@ -8,30 +8,36 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 
 public class AnalyticsBase {
     protected final String apiKey;
     protected final HttpClient httpClient;
-    protected HashMap<String, Object> dataToSend;
+    protected JSONObject dataToSend;
     protected String baseAPIUrl;
+    protected Boolean debug;
+    protected Boolean ready;
 
-    public AnalyticsBase(String apiKey) {
+    public AnalyticsBase(String apiKey, Boolean debug) {
         this.apiKey = apiKey;
         this.httpClient = HttpClient.newHttpClient();
+        this.debug = debug;
+        this.ready = false;
 
         String[] date = new Date().toString().split(" ");
-        this.dataToSend = new HashMap<>() {{
-            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-            put("guilds", 0);
-            put("users", 0);
-            put("interactions", new ArrayList<>());
-            put("locales", new ArrayList<>());
-            put("guildsLocales", new ArrayList<>());
-        }};
+        this.dataToSend = new JSONObject("{" +
+                "\"date\": \"" + date[5] + "-" + monthToNumber(date[1]) + "-" + date[2] + "\"," +
+                "\"guilds\": 0," +
+                "\"users\": 0," +
+                "\"interactions\": []," +
+                "\"locales\": []," +
+                "\"guildsLocales\": []," +
+                "\"guildMembers\": {\"little\": 0, \"medium\": 0, \"big\": 0, \"huge\": 0}," +
+                "\"guildsStats\": []," +
+                "\"addedGuilds\": 0," +
+                "\"removedGuilds\": 0," +
+            "}");
     }
 
     public InteractionItem parseStringToInteractionItem(String string) {
@@ -50,15 +56,13 @@ public class AnalyticsBase {
     }
 
     protected boolean isConfigInvalid(String username, String avatar, String id, String libType) throws IOException, InterruptedException {
-        HashMap<String, Object> data = new HashMap<>() {{
-            put("framework", libType);
-            put("version", AnalyticsBase.class.getPackage().getImplementationVersion());
-            put("username", username);
-            put("avatar", avatar);
-        }};
-
-        ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writeValueAsString(data);
+        JSONObject data = new JSONObject("{" +
+                "\"framework\": \"" + libType + "\"," +
+                "\"version\": \"" + AnalyticsBase.class.getPackage().getImplementationVersion() + "\"," +
+                "\"username\": \"" + username + "\"," +
+                "\"avatar\": \"" + avatar + "\"" +
+            "}");
+        String json = data.toString();
 
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                 .uri(URI.create(ApiEndpoints.BASE_URL + ApiEndpoints.BOT_URL.replace("[id]", id)))
@@ -100,10 +104,10 @@ public class AnalyticsBase {
         return response;
     }
 
-    public HashMap<String, Object> getData() {
+    public JSONObject getData() {
         return dataToSend;
     }
-    public void setData(HashMap<String, Object> data) {
+    public void setData(JSONObject data) {
         dataToSend = data;
     }
 

@@ -17,21 +17,21 @@ import java.util.HashMap;
 public class JDAAnalytics extends AnalyticsBase {
     private final JDA client;
 
-    public JDAAnalytics(JDA jda, String apiKey) {
-        super(apiKey);
+    public JDAAnalytics(JDA jda, String apiKey, Boolean debug) {
+        super(apiKey, debug);
         this.client = jda;
         this.baseAPIUrl = ApiEndpoints.BASE_URL + ApiEndpoints.BOT_STATS.replace("[id]", client.getSelfUser().getId());
 
         String[] date = new Date().toString().split(" ");
 
-        this.setData(new HashMap<>() {{
-            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-            put("guilds", client.getGuilds().size());
-            put("users", client.getUsers().size());
-            put("interactions", new ArrayList<>());
-            put("locales", new ArrayList<>());
-            put("guildsLocales", new ArrayList<>());
-        }});
+//        this.setData(new HashMap<>() {{
+//            put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+//            put("guilds", client.getGuilds().size());
+//            put("users", client.getUsers().size());
+//            put("interactions", new ArrayList<>());
+//            put("locales", new ArrayList<>());
+//            put("guildsLocales", new ArrayList<>());
+//        }});
     }
 
     public JDA getClient() {
@@ -73,46 +73,46 @@ public class JDAAnalytics extends AnalyticsBase {
         Number guildCount = client.getGuilds().size();
         Number userCount = client.getUsers().size();
 
-        HashMap<String, Object> data = super.getData();
-
-        if (
-                data.get("guilds") == guildCount
-                && data.get("users") == userCount
-                && ((ArrayList<String>) data.get("interactions")).size() == 0
-                && ((ArrayList<String>) data.get("locales")).size() == 0
-                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
-        ) return;
-
-        HttpResponse<String> response = super.post(new ObjectMapper()
-                .writeValueAsString(data));
-
-        if (response.statusCode() == 401) {
-            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
-            return;
-        }
-        if (response.statusCode() == 429) {
-            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
-            return;
-        }
-        if (response.statusCode() == 423) {
-            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
-            return;
-        }
-        if (response.statusCode() != 200) {
-            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
-            return;
-        }
-
-        if (response.statusCode() == 200) {
-            String[] date = new Date().toString().split(" ");
-            super.setData(new HashMap<>() {{
-                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
-                put("guilds", guildCount);
-                put("users", userCount);
-                put("interactions", new ArrayList<>());
-                put("locales", new ArrayList<>());
-                put("guildsLocales", new ArrayList<>());
-            }});
-        }
+//        HashMap<String, Object> data = super.getData();
+//
+//        if (
+//                data.get("guilds") == guildCount
+//                && data.get("users") == userCount
+//                && ((ArrayList<String>) data.get("interactions")).size() == 0
+//                && ((ArrayList<String>) data.get("locales")).size() == 0
+//                && ((ArrayList<String>) data.get("guildsLocales")).size() == 0
+//        ) return;
+//
+//        HttpResponse<String> response = super.post(new ObjectMapper()
+//                .writeValueAsString(data));
+//
+//        if (response.statusCode() == 401) {
+//            new IOException(ErrorCodes.INVALID_API_TOKEN).printStackTrace();
+//            return;
+//        }
+//        if (response.statusCode() == 429) {
+//            new IOException(ErrorCodes.ON_COOLDOWN).printStackTrace();
+//            return;
+//        }
+//        if (response.statusCode() == 423) {
+//            new IOException(ErrorCodes.SUSPENDED_BOT).printStackTrace();
+//            return;
+//        }
+//        if (response.statusCode() != 200) {
+//            new IOException(ErrorCodes.DATA_NOT_SENT).printStackTrace();
+//            return;
+//        }
+//
+//        if (response.statusCode() == 200) {
+//            String[] date = new Date().toString().split(" ");
+//            super.setData(new HashMap<>() {{
+//                put("date", date[5] + "-" + monthToNumber(date[1]) + "-" + date[2]);
+//                put("guilds", guildCount);
+//                put("users", userCount);
+//                put("interactions", new ArrayList<>());
+//                put("locales", new ArrayList<>());
+//                put("guildsLocales", new ArrayList<>());
+//            }});
+//        }
     }
 }
