@@ -104,6 +104,17 @@ public class AnalyticsBase {
         return response;
     }
 
+    public void updateGuildCount(String type) {
+        switch (type) {
+            case "add":
+                dataToSend.put("addedGuilds", dataToSend.getInt("addedGuilds") + 1);
+                break;
+            case "remove":
+                dataToSend.put("removedGuilds", dataToSend.getInt("removedGuilds") + 1);
+                break;
+        }
+    }
+
     public JSONObject getData() {
         return dataToSend;
     }

@@ -183,6 +183,22 @@ public class JavacordAnalytics extends AnalyticsBase {
             }
         });
 
+        client.addServerJoinListener(listener -> {
+            try {
+                updateGuildCount("add");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+        client.addServerLeaveListener(listener -> {
+            try {
+                updateGuildCount("remove");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
         new Thread(() -> {
             while (true) {
                 try {
